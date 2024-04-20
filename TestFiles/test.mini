@@ -1,0 +1,24 @@
+struct C {
+    struct C y;
+    int z;
+};
+
+fun bar() int {
+    return 9;
+}
+
+fun foo() int {
+    int x;
+    x = bar();
+    return x;
+}
+
+fun main() void {
+    int a;
+    struct C x;
+    a = 1;
+    a = bar();
+    foo();
+    x.y.z = 999;
+}
+

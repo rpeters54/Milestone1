@@ -1,0 +1,8 @@
+fun main() void {
+    int_array arr;
+
+    arr = new int_array[10];
+    arr[9] = 20;
+    arr[3] = arr[9];
+
+}
