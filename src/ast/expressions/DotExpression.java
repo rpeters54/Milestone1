@@ -1,6 +1,7 @@
 package ast.expressions;
 
 import ast.*;
+import ast.types.IntType;
 import ast.types.StructType;
 import ast.types.Type;
 
@@ -41,19 +42,41 @@ public class DotExpression
     }
 
     @Override
-    public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-        LLVMMetadata structData = left.genLLVM(block, env);
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        // retrieve type of item
+        Value structData = left.genInst(block, env);
         StructType type = (StructType) structData.getType();
+
+        // find type declaration from type
         TypeDeclaration structDecl = env.lookupTypeDeclaration(type.getName());
+
+        // find position of member in the struct
         int memberIndex = structDecl.locateMember(id);
+
+        // turn the index into a value
+        Value indexData = new Value(env, new IntType(),""+memberIndex);
+
+        // get next 2 regs
+        String reg = env.getNextReg();
+        String reg2 = env.getNextReg();
+
+        // format instruction strings
+        String gep = String.format("%s = getelementptr %s %s, i1 0, %s %s",
+                reg, structData.getIrType(), structData.getValue(),
+                indexData.getIrType(), indexData.getValue());
+
+        // get the type of the member for the load instruction
         Declaration memberDecl = structDecl.getFields().get(memberIndex);
         Type memberType = memberDecl.getType();
-        int reg = env.getCurrentRegister();
-        block.addCode(LLVMPrinter.sprintGEP(reg, structData, memberIndex));
-        reg = env.getCurrentRegister();
-        LLVMMetadata memberData = new LLVMMetadata(
-                memberType, env.typeToString(memberType), reg);
-        block.addCode(LLVMPrinter.sprintLoad(reg, memberData));
-        return memberData;
+
+        String load = String.format("%s = load %s, %s",
+                reg2, env.typeToString(memberType), reg);
+
+        // add instructions to the basic block
+        block.addCode(gep);
+        block.addCode(load);
+
+        // return member value
+        return new Value(env, memberType, reg2);
     }
 }

@@ -1,7 +1,6 @@
 package ast.expressions;
 
 import ast.*;
-import ast.expressions.AbstractExpression;
 import ast.types.BoolType;
 import ast.types.Type;
 
@@ -19,8 +18,7 @@ public class FalseExpression
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      Type type = new BoolType();
-      return new LLVMMetadata(type, env.typeToString(type), "false");
+   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+      return new Value(env, new BoolType(), "false");
    }
 }

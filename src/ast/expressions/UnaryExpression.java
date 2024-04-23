@@ -58,25 +58,21 @@ public class UnaryExpression
     }
 
     @Override
-    public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-        LLVMMetadata operandData = operand.genLLVM(block, env);
-        int reg = env.getCurrentRegister();
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        Value operandData = operand.genInst(block, env);
+        String reg = env.getNextReg();
         switch (operator) {
             case MINUS -> {
-                Type zeroType = new IntType();
-                LLVMMetadata zero = new LLVMMetadata(
-                        zeroType, env.typeToString(zeroType), "0");
-                block.addCode(LLVMPrinter.sprintBinop(reg, "sub", zero, operandData));
-                return new LLVMMetadata(zeroType, env.typeToString(zeroType), reg);
+                Value zero = new Value(env, new IntType(), "0");
+                block.addCode(LLVMPrinter.binop(reg, "sub", zero, operandData));
+                return new Value(env, new IntType(), reg);
             }
             case NOT -> {
-                Type invType = new BoolType();
-                LLVMMetadata inv = new LLVMMetadata(
-                        invType, env.typeToString(invType), "1");
-                block.addCode(LLVMPrinter.sprintBinop(reg, "xor", inv, operandData));
-                return new LLVMMetadata(invType, env.typeToString(invType), reg);
+                Value inv = new Value(env, new BoolType(), "1");
+                block.addCode(LLVMPrinter.binop(reg, "xor", inv, operandData));
+                return new Value(env, new BoolType(), reg);
             }
-            default -> {return null;}
+            default -> {throw new IllegalArgumentException("Invalid operand");}
         }
     }
 }

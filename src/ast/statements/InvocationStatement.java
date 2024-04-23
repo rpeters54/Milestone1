@@ -1,6 +1,8 @@
 package ast.statements;
 
 
+import ast.BasicBlock;
+import ast.LLVMEnvironment;
 import ast.TypeEnvironment;
 import ast.TypeException;
 import ast.expressions.Expression;
@@ -26,5 +28,11 @@ public class InvocationStatement
    @Override
    public boolean alwaysReturns() {
       return false;
+   }
+
+   @Override
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      expression.genInst(block, env);
+      return block;
    }
 }

@@ -2,7 +2,8 @@ package ast.lvalues;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.lvalues.Lvalue;
+import ast.types.IntType;
+import ast.types.PointerType;
 import ast.types.StructType;
 import ast.types.Type;
 
@@ -44,16 +45,20 @@ public class LvalueDot implements Lvalue {
 
 
     @Override
-    public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-        LLVMMetadata structData = left.genLLVM(block, env);
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        //get struct metadata
+        Value structData = left.genInst(block, env);
         StructType type = (StructType) structData.getType();
         TypeDeclaration structDecl = env.lookupTypeDeclaration(type.getName());
+        //find the index of the member in the struct
         int memberIndex = structDecl.locateMember(id);
+        Value indexData = new Value(env, new IntType(), ""+memberIndex);
         Declaration memberDecl = structDecl.getFields().get(memberIndex);
+        //get the type of the member declaration
         Type memberType = memberDecl.getType();
-        int reg = env.getCurrentRegister();
-        block.addCode(LLVMPrinter.sprintGEP(reg, structData, memberIndex));
-        return new LLVMMetadata(
-                memberType, env.typeToString(memberType), reg);
+        String reg = env.getNextReg();
+        block.addCode(LLVMPrinter.GEP(reg, structData, indexData));
+        //return metadata for pointer to struct member
+        return new Value(env, new PointerType(memberType), reg);
     }
 }

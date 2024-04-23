@@ -1,8 +1,8 @@
 package ast.expressions;
 
-import ast.Codegen;
+import ast.InstHandler;
 import ast.Typed;
 
-public interface Expression extends Typed, Codegen
+public interface Expression extends Typed, InstHandler
 {
 }

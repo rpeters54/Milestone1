@@ -5,8 +5,6 @@ import ast.types.BoolType;
 import ast.types.IntType;
 import ast.types.Type;
 
-import java.util.List;
-
 public class BinaryExpression
    extends AbstractExpression
 {
@@ -94,11 +92,10 @@ public class BinaryExpression
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      LLVMMetadata leftData = left.genLLVM(block,env);
-      LLVMMetadata rightData = right.genLLVM(block,env);
-      int reg = env.getCurrentRegister();
-      Type type;
+   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+      Value leftData = left.genInst(block,env);
+      Value rightData = right.genInst(block,env);
+      String reg = env.getNextReg();
       String opName = switch (operator) {
          case TIMES -> "mul";
          case DIVIDE -> "sdiv";
@@ -114,24 +111,31 @@ public class BinaryExpression
          case OR -> "or";
       };
 
+      // print instruction output based on the operator
       switch (operator) {
          case TIMES, DIVIDE, PLUS, MINUS -> {
-            block.addCode(LLVMPrinter.sprintBinop(
-                    reg, opName, leftData, rightData));
-            type = new IntType();
-            return new LLVMMetadata(type, env.typeToString(type), reg);
+            // format binary expression string
+            String binop = String.format("%s = %s %s %s, %s", reg, opName,
+                    leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            // add it to the basic block
+            block.addCode(binop);
+            return new Value(env, new IntType(), reg);
          }
          case LT, LE, GT, GE, EQ, NE -> {
-            block.addCode(LLVMPrinter.sprintCmp(
-                    reg, opName, leftData, rightData));
-            type = new BoolType();
-            return new LLVMMetadata(type, env.typeToString(type), reg);
+            // format binary expression string
+            String cmp = String.format("%s = icmp %s %s %s, %s",
+                    reg, opName, leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            // add it to the basic block
+            block.addCode(cmp);
+            return new Value(env, new BoolType(), reg);
          }
          case AND, OR -> {
-            block.addCode(LLVMPrinter.sprintBinop(
-                    reg, opName, leftData, rightData));
-            type = new BoolType();
-            return new LLVMMetadata(type, env.typeToString(type), reg);
+            // format binary expression string
+            String binop = String.format("%s = %s %s %s, %s", reg, opName,
+                    leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            // add it to the basic block
+            block.addCode(binop);
+            return new Value(env, new BoolType(), reg);
          }
          default -> throw new IllegalArgumentException("Binary Expression: Failed to Resolve Binop");
       }

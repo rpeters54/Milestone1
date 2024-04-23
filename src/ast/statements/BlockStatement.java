@@ -1,7 +1,6 @@
 package ast.statements;
 
-import ast.TypeEnvironment;
-import ast.TypeException;
+import ast.*;
 import ast.types.Type;
 import ast.types.VoidType;
 
@@ -41,5 +40,14 @@ public class BlockStatement
          }
       }
       return false;
+   }
+
+   @Override
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      BasicBlock tmp = block;
+      for (Statement stmt : statements) {
+         tmp = stmt.genBlock(tmp,env);
+      }
+      return tmp;
    }
 }

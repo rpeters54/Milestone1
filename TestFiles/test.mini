@@ -13,12 +13,28 @@ fun foo() int {
     return x;
 }
 
+fun add(int a, int b) int {
+    return a + b;
+}
+
 fun main() void {
     int a;
+    int b;
+    int_array arr;
     struct C x;
+
+    x = new C;
+    delete x;
+
+    arr = new int_array[10];
+    arr[4] = 7;
+    arr[7] = arr[4];
+    delete arr;
+
     a = 1;
-    a = bar();
+    b = 2;
+    a = add(a, b);
+
     foo();
     x.y.z = 999;
 }
-

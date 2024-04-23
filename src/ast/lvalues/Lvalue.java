@@ -1,6 +1,6 @@
 package ast.lvalues;
 
-import ast.Codegen;
+import ast.InstHandler;
 import ast.Typed;
 
-public interface Lvalue extends Typed, Codegen {}
+public interface Lvalue extends Typed, InstHandler {}

@@ -1,8 +1,6 @@
 package ast.statements;
 
-import ast.TypeEnvironment;
-import ast.TypeException;
-import ast.statements.AbstractStatement;
+import ast.*;
 import ast.types.FunctionType;
 import ast.types.Type;
 import ast.types.VoidType;
@@ -22,7 +20,7 @@ public class ReturnEmptyStatement
       if (func.getOutput() instanceof VoidType) {
          return new VoidType();
       } else {
-         throw new TypeException(String.format("DeleteStatement: Empty Return " +
+         throw new TypeException(String.format("ReturnEmptyStatement: Empty Return " +
                  "in Non-Void Function, line: %d", getLineNum()));
       }
    }
@@ -30,5 +28,11 @@ public class ReturnEmptyStatement
    @Override
    public boolean alwaysReturns() {
       return true;
+   }
+
+   @Override
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      block.addCode(LLVMPrinter.unCondBranch(env.getRetLabel()));
+      return block;
    }
 }

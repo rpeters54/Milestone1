@@ -2,8 +2,6 @@ package ast.statements;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.statements.AbstractStatement;
-import ast.statements.Statement;
 import ast.types.BoolType;
 import ast.types.Type;
 import ast.types.VoidType;
@@ -35,7 +33,9 @@ public class ConditionalStatement
 
       /* ensure both cases properly type check */
       thenBlock.typecheck(env);
-      elseBlock.typecheck(env);
+      if (elseBlock != null) {
+         elseBlock.typecheck(env);
+      }
 
       /* return void on success */
       return new VoidType();
@@ -43,11 +43,50 @@ public class ConditionalStatement
 
    @Override
    public boolean alwaysReturns() {
-      return thenBlock.alwaysReturns() && elseBlock.alwaysReturns();
+      if (elseBlock != null) {
+         return thenBlock.alwaysReturns() && elseBlock.alwaysReturns();
+      }
+      return thenBlock.alwaysReturns();
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      // evaluate the guard
+      Value guardData = guard.genInst(block, env);
+      // create labels for the true basic block and end basic block
+      String endLabel = env.getNextBranch();
+      String trueLabel = env.getNextBranch();
+      // create the end basic block and add its label
+      BasicBlock endBlock = new BasicBlock();
+      endBlock.addCode(LLVMPrinter.label(endLabel));
+      // create the true basic block and add its label
+      BasicBlock trueBlock = new BasicBlock();
+      trueBlock.addCode(LLVMPrinter.label(trueLabel));
+      // add the true block to the list of the first block's children
+      block.addChild(trueBlock);
+      // evaluate the internals of the true block, possibly generating more blocks
+      // keep track of the last block made
+      BasicBlock lastTrueBlock = thenBlock.genBlock(trueBlock, env);
+      // add a branch to the end block at the end of the final block of the true case
+      lastTrueBlock.addCode(LLVMPrinter.unCondBranch(endLabel));
+      lastTrueBlock.addChild(endBlock);
+      // repeat the same for else if the case exists
+      if (elseBlock != null) {
+         BasicBlock falseBlock = new BasicBlock();
+         String falseLabel = env.getNextBranch();
+         falseBlock.addCode(LLVMPrinter.label(falseLabel));
+         block.addChild(falseBlock);
+         BasicBlock lastFalseBlock = thenBlock.genBlock(falseBlock, env);
+         lastFalseBlock.addCode(LLVMPrinter.unCondBranch(endLabel));
+         lastFalseBlock.addChild(endBlock);
 
+         // print the conditional branch at the end of the original block
+         block.addCode(LLVMPrinter.condBranch(guardData, trueLabel, falseLabel));
+      } else {
+         // with no else block, false branches to the end block instead
+         block.addCode(LLVMPrinter.condBranch(guardData, trueLabel, endLabel));
+      }
+
+      return endBlock;
    }
 }

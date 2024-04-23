@@ -36,14 +36,4 @@ public class Declaration {
         return Objects.hash(type, name);
     }
 
-
-    public String genGlobal(LLVMEnvironment env) {
-        String typeString = env.typeToString(type);
-        return String.format("@%s = global %s", name, typeString);
-    }
-
-    public String genLocal(LLVMEnvironment env) {
-        String typeString = env.typeToString(type);
-        return String.format("%%%s = alloca %s", name, typeString);
-    }
 }

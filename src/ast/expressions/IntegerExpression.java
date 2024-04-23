@@ -22,8 +22,7 @@ public class IntegerExpression
 
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      Type type = new IntType();
-      return new LLVMMetadata(type, env.typeToString(type), value);
+   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+      return new Value(env, new IntType(), value);
    }
 }

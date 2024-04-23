@@ -43,7 +43,10 @@ fun main() int
    struct A a;
    int i, j, k;
    bool b;
-      int h;
+   int h;
+
+   a = null;
+
    {
       i = --2;
       if (i < g(1,null))

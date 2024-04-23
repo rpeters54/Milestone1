@@ -57,18 +57,16 @@ public class InvocationExpression
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      List<LLVMMetadata> argList = new ArrayList<>();
+   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+      List<Value> argList = new ArrayList<>();
       for (Expression arg : arguments) {
-         argList.add(arg.genLLVM(block,env));
+         argList.add(arg.genInst(block,env));
       }
-      int reg = env.getCurrentRegister();
-      FunctionType funcType = (FunctionType) env.lookupBinding(name);
-      LLVMMetadata funcData = new LLVMMetadata(
-              funcType.getOutput(), env.typeToString(funcType.getOutput()), name);
-      block.addCode(LLVMPrinter.sprintCall(
-              reg, funcData, argList));
-      return new LLVMMetadata(
-              funcType.getOutput(), env.typeToString(funcType.getOutput()), reg);
+      String reg = env.getNextReg();
+      FunctionType funcType = (FunctionType) env.lookupTypeBinding(name);
+      Value funcData = new Value(env, funcType.getOutput(), env.lookupRegBinding(name));
+      block.addCode(LLVMPrinter.call(reg, funcData, argList));
+      funcData.updateValue(reg);
+      return funcData;
    }
 }

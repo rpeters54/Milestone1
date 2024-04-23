@@ -1,8 +1,9 @@
 package ast.statements;
 
-import ast.Codegen;
+import ast.BlockHandler;
+import ast.InstHandler;
 import ast.Typed;
 
-public interface Statement extends Typed, Codegen {
+public interface Statement extends Typed, BlockHandler {
     public boolean alwaysReturns();
 }

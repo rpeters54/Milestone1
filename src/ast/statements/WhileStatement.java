@@ -1,10 +1,7 @@
 package ast.statements;
 
-import ast.TypeEnvironment;
-import ast.TypeException;
+import ast.*;
 import ast.expressions.Expression;
-import ast.statements.AbstractStatement;
-import ast.statements.Statement;
 import ast.types.BoolType;
 import ast.types.Type;
 import ast.types.VoidType;
@@ -40,4 +37,20 @@ public class WhileStatement
       return false;
    }
 
+   @Override
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      Value guardData = guard.genInst(block, env);
+      String innerLabel = env.getNextBranch();
+      String outerLabel = env.getNextBranch();
+      block.addCode(LLVMPrinter.condBranch(guardData, innerLabel, outerLabel));
+      BasicBlock inner = new BasicBlock();
+      block.addChild(inner);
+      inner.addCode(LLVMPrinter.label(innerLabel));
+      BasicBlock lastInner = body.genBlock(inner, env);
+      lastInner.addCode(LLVMPrinter.condBranch(guardData, innerLabel, outerLabel));
+      BasicBlock outer = new BasicBlock();
+      lastInner.addChild(outer);
+      outer.addCode(LLVMPrinter.label(outerLabel));
+      return outer;
+   }
 }

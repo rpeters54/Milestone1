@@ -1,11 +1,10 @@
 package ast.lvalues;
 
-import ast.TypeEnvironment;
-import ast.TypeException;
+import ast.*;
 import ast.expressions.Expression;
-import ast.lvalues.Lvalue;
 import ast.types.ArrayType;
 import ast.types.IntType;
+import ast.types.PointerType;
 import ast.types.Type;
 
 public class LvalueIndex implements Lvalue {
@@ -32,5 +31,14 @@ public class LvalueIndex implements Lvalue {
                     "Non-Int Index, line %d", lineNum));
         }
         return new IntType();
+    }
+
+    @Override
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        Value arrData = left.genInst(block, env);
+        Value indexData = index.genInst(block, env);
+        String reg = env.getNextReg();
+        block.addCode(LLVMPrinter.GEP(reg, arrData, indexData));
+        return new Value(env, new PointerType(arrData.getType()), reg);
     }
 }

@@ -1,7 +1,7 @@
 package ast.lvalues;
 
 import ast.*;
-import ast.lvalues.Lvalue;
+import ast.types.PointerType;
 import ast.types.Type;
 
 public class LvalueId implements Lvalue {
@@ -19,7 +19,8 @@ public class LvalueId implements Lvalue {
     }
 
     @Override
-    public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-        return null;
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        Type type = env.lookupTypeBinding(id);
+        return new Value(env, new PointerType(type), env.lookupRegBinding(id));
     }
 }

@@ -2,8 +2,8 @@ package ast.statements;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.statements.AbstractStatement;
 import ast.types.FunctionType;
+import ast.types.PointerType;
 import ast.types.Type;
 
 public class ReturnStatement
@@ -40,8 +40,10 @@ public class ReturnStatement
 
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      block.addCode(LLVMPrinter.sprintReturnVoid());
-      return null;
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      Value val = expression.genInst(block, env);
+      block.addCode(LLVMPrinter.store(val, Function.retVal));
+      block.addCode(LLVMPrinter.unCondBranch(env.getRetLabel()));
+      return block;
    }
 }

@@ -1,7 +1,6 @@
 package ast.expressions;
 
 import ast.*;
-import ast.expressions.AbstractExpression;
 import ast.types.Type;
 
 public class IdentifierExpression
@@ -21,12 +20,13 @@ public class IdentifierExpression
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-      int reg = env.getCurrentRegister();
-      Type type = env.lookupBinding(id);
-      String typeSpecifier = env.typeToString(type);
-      block.addCode(String.format("%%%d = load %s, %s* %s",
-              reg, typeSpecifier, typeSpecifier, id));
-      return new LLVMMetadata(type, typeSpecifier, reg);
+   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+      String reg = env.getNextReg();
+      Value idData = new Value(env, env.lookupTypeBinding(id), env.lookupRegBinding(id));
+      // print load value to register
+      block.addCode(LLVMPrinter.load(reg, idData));
+      // update value object so that the location is the register loaded to
+      idData.updateValue(reg);
+      return idData;
    }
 }

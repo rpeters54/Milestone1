@@ -4,40 +4,63 @@ import java.util.List;
 
 public class LLVMPrinter {
 
-    public static String sprintBinop(int resultReg, String op, LLVMMetadata left, LLVMMetadata right) {
-        return String.format("%%%d = %s %s %s, %s",
-                resultReg, op, left.getInlineType(), left.getValue(), right.getValue());
+    /* return formatted binary expression llvm instruction */
+    public static String binop(String result, String op, Value left, Value right) {
+        return String.format("%s = %s %s %s, %s",
+                result, op, left.getIrType(), left.getValue(), right.getValue());
     }
 
-    public static String sprintCmp(int resultReg, String op, LLVMMetadata left, LLVMMetadata right) {
-        return String.format("%%%d = icmp %s %s %s, %s",
-                resultReg, op, left.getInlineType(), left.getValue(), right.getValue());
+    /* return formatted cmp llvm instruction */
+    public static String icmp(String result, String op, Value left, Value right) {
+        return String.format("%s = icmp %s %s %s, %s",
+                result, op, left.getIrType(), left.getValue(), right.getValue());
     }
 
-    public static String sprintLoad(int resultReg, LLVMMetadata loc) {
-        return String.format("%%%d = load %s* %s",
-                resultReg, loc.getInlineType(), loc.getValue());
+    public static String condBranch(Value cond, String ifTrue, String ifFalse) {
+        return String.format("br i1 %s, label %%%s, label %%%s",
+                cond.getValue(), ifTrue, ifFalse);
     }
 
-    public static String sprintStore(int resultReg, LLVMMetadata item, LLVMMetadata loc) {
-        return String.format("%%%d = store %s %s, %s* %s",
-                resultReg, item.getInlineType(), item.getValue(),
-                loc.getInlineType(), loc.getValue());
+    public static String unCondBranch(String dest) {
+        return String.format("br label %%%s", dest);
     }
 
-    public static String sprintGEP(int resultReg, LLVMMetadata struct, int index) {
-        return String.format("%%%d = getelementptr %s* %s, i1 0, i32 %d",
-                resultReg, struct.getInlineType(), struct.getValue(), index);
+    /* return formatted load llvm instruction */
+    public static String load(String result, Value loc) {
+        return String.format("%s = load %s, %s",
+                result, loc.getIrType(), loc.getValue());
     }
 
-    public static String sprintCall(int resultReg, LLVMMetadata func, List<LLVMMetadata> args) {
-        String start = String.format("%%%d = call %s @%s(",
-                resultReg, func.getInlineType(), func.getValue());
+    /* return formatted store llvm instruction */
+    public static String store(Value item, Value loc) {
+        return String.format("store %s %s, %s %s",
+                item.getIrType(), item.getValue(),
+                loc.getIrType(), loc.getValue());
+    }
+
+    /* return formatted getelementptr llvm instruction (used for pointer arith) */
+    public static String GEP(String result, Value struct, Value index) {
+        return String.format("%s = getelementptr %s %s, i1 0, %s %s",
+                result, struct.getIrType(), struct.getValue(),
+                index.getIrType(), index.getValue());
+    }
+
+    /* return formatted functional call llvm instruction */
+    public static String call(String result, Value func, List<Value> args) {
+        String start;
+        if (result == null) {
+            start = String.format("call %s %s(",
+                    func.getIrType(), func.getValue());
+        } else {
+            start = String.format("%s = call %s %s(",
+                    result, func.getIrType(), func.getValue());
+        }
+
         StringBuilder callBuilder = new StringBuilder(start);
         int startLength = callBuilder.length();
-        for (LLVMMetadata arg : args) {
+        for (Value arg : args) {
             callBuilder.append(String.format("%s %s, ",
-                    arg.getInlineType(), arg.getValue()));
+                    arg.getIrType(), arg.getValue()));
         }
         if (startLength != callBuilder.length()) {
             callBuilder.delete(callBuilder.length()-2, callBuilder.length());
@@ -46,12 +69,44 @@ public class LLVMPrinter {
         return callBuilder.toString();
     }
 
-    public static String sprintReturn(LLVMMetadata retVal) {
-        return String.format("ret %s %s",
-                retVal.getInlineType(), retVal.getValue());
+    public static String funDef(String irRetType, String name, List<Value> params) {
+        String stubStart = String.format("define %s %s(", irRetType, name);
+        StringBuilder stubBuilder = new StringBuilder(stubStart);
+        int before = stubBuilder.length();
+        for (Value param : params) {
+            stubBuilder.append(String.format("%s, ", param.getIrType()));
+        }
+        if (before != stubBuilder.length()) {
+            stubBuilder.delete(stubBuilder.length() - 2, stubBuilder.length());
+        }
+        stubBuilder.append(") {");
+        return stubBuilder.toString();
     }
 
-    public static String sprintReturnVoid() {
+    /* return formatted return statement */
+    public static String returns(Value retVal) {
+        return String.format("ret %s %s",
+                retVal.getIrType(), retVal.getValue());
+    }
+
+    public static String returnsVoid() {
         return "ret void";
+    }
+
+    public static String global(String result, String inlineType) {
+        return String.format("%s = common global %s", result, inlineType);
+    }
+
+    public static String alloca(String result, String inlineType) {
+        return String.format("%s = alloca %s", result, inlineType);
+    }
+
+    public static String bitcast(String result, Value uncasted, String resultType) {
+        return String.format("%s = bitcast %s %s to %s", result, uncasted.getIrType(),
+                uncasted.getValue(), resultType);
+    }
+
+    public static String label(String label) {
+        return String.format("%s:", label);
     }
 }

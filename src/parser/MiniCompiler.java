@@ -1,5 +1,6 @@
 package parser;
 
+import ast.BasicBlock;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -40,11 +41,7 @@ public class MiniCompiler {
             error("Invalid Return Path");
         }
 
-        try {
-            program.programCFG();
-        } catch (ast.TypeException e) {
-            e.printStackTrace();
-        }
+
 
     }
 

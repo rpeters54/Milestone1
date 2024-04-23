@@ -84,34 +84,52 @@ public class Program {
         return true;
     }
 
-    public BasicBlock programCFG() throws TypeException {
+    public BasicBlock programCFG() {
         BasicBlock top = new BasicBlock();
         LLVMEnvironment env = new LLVMEnvironment();
 
+        // add driver code to the top of the file
+        // addDrivers(top);
+
+        // add all type declarations and globals to the environment
         for (TypeDeclaration typeDecl : types) {
             env.addTypeDeclaration(typeDecl.getName(), typeDecl);
             top.addCode(typeDecl.genGlobal(env));
         }
         for (Declaration decl : decls) {
-            top.addCode(decl.genGlobal(env));
+            env.addGlobalBinding(decl.getName(), decl.getType(), decl.getName());
+            top.addCode(LLVMPrinter.global(
+                    env.lookupRegBinding(decl.getName()), env.typeToString(decl.getType())));
         }
         for (Function func : funcs) {
             BasicBlock functionBlock = new BasicBlock();
-            func.genLLVM(functionBlock, env);
+            env.addGlobalBinding(func.getName(), func.getType(), func.getName());
+            List<Value> paramList = new ArrayList<>();
+            for (Declaration param : func.getParams()) {
+                paramList.add(new Value(env, param.getType(), param.getName()));
+            }
+            functionBlock.addCode(LLVMPrinter.funDef(env.typeToString(func.getRetType()),
+                    env.lookupRegBinding(func.getName()),
+                    paramList));
+            func.genBlock(functionBlock, env);
             top.addChild(functionBlock);
         }
 
-        for (String s : top.getContents()) {
-            System.out.println(s);
-        }
-        for (BasicBlock block : top.getChildren()) {
-            for (String s : block.getContents()) {
-                System.out.println(s);
-            }
-        }
-        return null;
+        return top;
     }
 
+    /*
+    void addDrivers(BasicBlock block) {
+        block.addCode("declare i8* @malloc(i64)");
+        block.addCode("declare void @free(i8*)");
+        block.addCode("declare i64 @printf(i8*, ...)");
+        block.addCode("declare i64 @scanf(i8*, ...)");
+        block.addCode("@.println = private unnamed_addr constant [5 x i8] c\"%ld\\0A\\00\", align 1");
+        block.addCode("@.print = private unnamed_addr constant [5 x i8] c\"%ld \\00\", align 1");
+        block.addCode("@.read = private unnamed_addr constant [4 x i8] c\"%ld\\00\", align 1");
+        block.addCode("@.read_scratch = common global i64 0, align 8");
+    }
+    */
 
 
 }

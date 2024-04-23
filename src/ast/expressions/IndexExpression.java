@@ -3,6 +3,7 @@ package ast.expressions;
 import ast.*;
 import ast.types.ArrayType;
 import ast.types.IntType;
+import ast.types.PointerType;
 import ast.types.Type;
 
 public class IndexExpression
@@ -34,7 +35,21 @@ public class IndexExpression
     }
 
     @Override
-    public LLVMMetadata genLLVM(BasicBlock block, LLVMEnvironment env) {
-        return null;
+    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+        // evaluate left and right of the dot
+        Value arrData = left.genInst(block, env);
+        Value indexData = index.genInst(block, env);
+        // get the next register and generate a getelementptr inst.
+        String reg = env.getNextReg();
+        block.addCode(LLVMPrinter.GEP(reg, arrData, indexData));
+        // with the pointer to the array location found
+        // generate a load instruction that loads the value at the location
+        Type arrType = arrData.getType();
+        PointerType p = new PointerType(arrType);
+        Value arrPointer = new Value(env, p, reg);
+        reg = env.getNextReg();
+        block.addCode(LLVMPrinter.load(reg, arrPointer));
+        // return a value that defines what was loaded
+        return new Value(env, arrType, reg);
     }
 }

@@ -41,9 +41,11 @@ public class AssignmentStatement
    }
 
    @Override
-   public LLVMMetadata genLLVM(BasicBlock block,
+   public BasicBlock genBlock(BasicBlock block,
                                LLVMEnvironment env) {
-
-
+      Value leftData = target.genInst(block, env);
+      Value rightData = source.genInst(block, env);
+      block.addCode(LLVMPrinter.store(leftData,rightData));
+      return block;
    }
 }
