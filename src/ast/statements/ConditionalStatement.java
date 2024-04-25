@@ -60,14 +60,14 @@ public class ConditionalStatement
 
       // create and traverse true basic block
       Label trueStub = new Label();
-      BasicBlock lastTrueBlock = makeSubBlock(block, trueStub, env);
+      BasicBlock lastTrueBlock = makeSubBlock(block, thenBlock,trueStub, env);
       boolean thenReturns = lastTrueBlock.endsWithJump();
 
       BasicBlock endBlock = new BasicBlock();
 
       if (elseBlock != null) {
          Label falseStub = new Label();
-         BasicBlock lastFalseBlock = makeSubBlock(block, falseStub, env);
+         BasicBlock lastFalseBlock = makeSubBlock(block, elseBlock, falseStub, env);
          boolean elseReturns = lastFalseBlock.endsWithJump();
          // print the conditional branch at the end of the original block
          ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
@@ -104,7 +104,7 @@ public class ConditionalStatement
 
 
 
-   public BasicBlock makeSubBlock(BasicBlock parentBlock, Label subLabel, LLVMEnvironment env) {
+   public BasicBlock makeSubBlock(BasicBlock parentBlock, Statement elif, Label subLabel, LLVMEnvironment env) {
       // create the then basic block and add its label
       BasicBlock subBlock = new BasicBlock();
       subBlock.addCode(subLabel);
@@ -114,7 +114,7 @@ public class ConditionalStatement
 
       // evaluate the internals of the true block, possibly generating more blocks
       // keep track of the last block made
-      return thenBlock.genBlock(subBlock, env);
+      return elif.genBlock(subBlock, env);
    }
 
 

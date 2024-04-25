@@ -22,8 +22,8 @@ public class ReadExpression
 
    @Override
    public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      Register readResult = new Register(new IntType());
       Register dummy = new Register(new IntType());
+      Register readResult = new Register(new IntType());
       ReadCallInstruction read = new ReadCallInstruction(dummy, readResult);
       block.addCode(read);
       return readResult;
