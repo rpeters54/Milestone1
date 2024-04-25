@@ -5,6 +5,7 @@ import ast.types.FunctionType;
 import ast.types.PointerType;
 import ast.types.Type;
 import ast.types.VoidType;
+import instructions.*;
 
 import java.util.*;
 
@@ -51,7 +52,7 @@ public class Function implements Typed, BlockHandler {
     }
 
     public List<Declaration> concatDecls() {
-        List<Declaration> allDecls = new ArrayList<Declaration>(params);
+        List<Declaration> allDecls = new ArrayList<>(params);
         allDecls.addAll(locals);
         return allDecls;
     }
@@ -78,54 +79,75 @@ public class Function implements Typed, BlockHandler {
     }
 
 
-    public static Value retVal;
+    public static Label returnLabel;
+    public static Register returnReg;
 
     @Override
-    public BasicBlock genBlock(BasicBlock block,
-                                LLVMEnvironment env) {
-        env.refreshLocals();
+    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+        // reset the register count back to zero
+        Register.resetCount();
 
-        // skip all implicitly defined regs
-        List<String> implicitRegs = new ArrayList<>();
+        List<Declaration> allDecls = new ArrayList<>(params);
+        allDecls.addAll(locals);
+
+        // collect all implicitly defined regs
+        List<Register> implicitRegs = new ArrayList<>();
         for (Declaration param: params) {
-            implicitRegs.add(env.getNextReg());
+            implicitRegs.add(new Register(param.getType().copy()));
         }
 
-        // declare a container to hold the return value (helps with cleanup)
-        String reg = env.getNextReg();
-        Value retVal = new Value(env, retType, reg);
-        block.addCode(LLVMPrinter.alloca(retVal.getValue(), retVal.getIrType()));
-        retVal.updateType(env, new PointerType(retType));
-        Function.retVal = retVal;
+        // one register has to be skipped
+        Register skip = new Register();
 
-        for (Declaration param: params) {
-            reg = env.getNextReg();
-            block.addCode(LLVMPrinter.alloca(reg, env.typeToString(param.getType())));
-            env.addLocalBinding(param.getName(), param.getType(), reg);
+        // declare a container to hold the return value (helps with cleanup)
+        returnReg = new Register(new PointerType(retType.copy()));
+        AllocaInstruction returnAlloca = new AllocaInstruction(returnReg);
+        block.addCode(returnAlloca);
+
+        //declare a label for returns to jump to
+        returnLabel = new Label();
+
+        for (Declaration decl: allDecls) {
+            Register localVar = new Register(new PointerType(decl.getType().copy()));
+            AllocaInstruction alloca = new AllocaInstruction(localVar);
+            block.addCode(alloca);
+            env.addLocalBinding(decl.getName(), localVar);
         }
         for (int i = 0; i < params.size(); i++) {
             Declaration param = params.get(i);
-            Value item = new Value(env, param.getType(), implicitRegs.get(i));
-            Value loc = new Value(env, new PointerType(param.getType()), env.lookupRegBinding(param.getName()));
-            block.addCode(LLVMPrinter.store(item, loc));
+            Register implicitReg = implicitRegs.get(i);
+            Register localVar = env.lookupReg(param.getName());
+            StoreInstruction store = new StoreInstruction(localVar, implicitReg);
+            block.addCode(store);
         }
-        for (Declaration decl : locals) {
-            reg = env.getNextReg();
-            env.addLocalBinding(decl.getName(), decl.getType(), reg);
-            block.addCode(LLVMPrinter.alloca(reg, env.typeToString(decl.getType())));
+
+        // add the function epilogue
+        BasicBlock endOfBody = body.genBlock(block,env);
+        BasicBlock lastBlock = new BasicBlock();
+        endOfBody.addChild(lastBlock);
+
+        // if the last statement does not end with a call to return, and a branch to the return statement
+        if (!endOfBody.endsWithJump()) {
+            UnconditionalBranchInstruction returnBridge = new UnconditionalBranchInstruction(Function.returnLabel);
+            endOfBody.addCode(returnBridge);
         }
-        BasicBlock lastBlock = body.genBlock(block,env);
-        lastBlock.addCode(LLVMPrinter.label(env.getRetLabel()));
+
+        //add the return jump label
+        lastBlock.addCode(returnLabel);
 
         if (retType instanceof VoidType) {
-            lastBlock.addCode(LLVMPrinter.returnsVoid());
+            ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
+            lastBlock.addCode(retVoid);
         } else {
-            reg = env.getNextReg();
-            lastBlock.addCode(LLVMPrinter.load(reg, Function.retVal));
-            Value lastReg = new Value(env, retType, reg);
-            lastBlock.addCode(LLVMPrinter.returns(lastReg));
+            Register loadResult = new Register(retType.copy());
+            LoadInstruction load = new LoadInstruction(loadResult, returnReg);
+            ReturnInstruction ret = new ReturnInstruction(loadResult);
+
+            lastBlock.addCode(load);
+            lastBlock.addCode(ret);
         }
-        lastBlock.addCode("}");
+        lastBlock.addCode(new EndOfFunction());
+
         return block;
     }
 }

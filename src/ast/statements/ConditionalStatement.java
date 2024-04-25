@@ -5,6 +5,9 @@ import ast.expressions.Expression;
 import ast.types.BoolType;
 import ast.types.Type;
 import ast.types.VoidType;
+import instructions.*;
+
+import java.util.List;
 
 public class ConditionalStatement
    extends AbstractStatement
@@ -51,42 +54,68 @@ public class ConditionalStatement
 
    @Override
    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+
       // evaluate the guard
-      Value guardData = guard.genInst(block, env);
-      // create labels for the true basic block and end basic block
-      String endLabel = env.getNextBranch();
-      String trueLabel = env.getNextBranch();
-      // create the end basic block and add its label
+      Source guardData = guard.genInst(block, env);
+
+      // create and traverse true basic block
+      Label trueStub = new Label();
+      BasicBlock lastTrueBlock = makeSubBlock(block, trueStub, env);
+      boolean thenReturns = lastTrueBlock.endsWithJump();
+
       BasicBlock endBlock = new BasicBlock();
-      endBlock.addCode(LLVMPrinter.label(endLabel));
-      // create the true basic block and add its label
-      BasicBlock trueBlock = new BasicBlock();
-      trueBlock.addCode(LLVMPrinter.label(trueLabel));
+
+      if (elseBlock != null) {
+         Label falseStub = new Label();
+         BasicBlock lastFalseBlock = makeSubBlock(block, falseStub, env);
+         boolean elseReturns = lastFalseBlock.endsWithJump();
+         // print the conditional branch at the end of the original block
+         ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
+         block.addCode(cond);
+         if (!(thenReturns && elseReturns)) {
+            Label endStub = new Label();
+            endBlock.addCode(endStub);
+            UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+            lastTrueBlock.addCode(trueToEnd);
+            lastTrueBlock.addChild(endBlock);
+            UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
+            lastFalseBlock.addCode(falseToEnd);
+            lastFalseBlock.addChild(endBlock);
+            return endBlock;
+         }
+         return lastFalseBlock;
+      } else {
+         Label endStub = new Label();
+         endBlock.addCode(endStub);
+         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+         lastTrueBlock.addCode(trueToEnd);
+         lastTrueBlock.addChild(endBlock);
+         // with no else block, false branches to the end block instead
+         ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, endStub);
+         block.addCode(cond);
+         return endBlock;
+      }
+   }
+
+
+
+
+
+
+
+
+   public BasicBlock makeSubBlock(BasicBlock parentBlock, Label subLabel, LLVMEnvironment env) {
+      // create the then basic block and add its label
+      BasicBlock subBlock = new BasicBlock();
+      subBlock.addCode(subLabel);
+
       // add the true block to the list of the first block's children
-      block.addChild(trueBlock);
+      parentBlock.addChild(subBlock);
+
       // evaluate the internals of the true block, possibly generating more blocks
       // keep track of the last block made
-      BasicBlock lastTrueBlock = thenBlock.genBlock(trueBlock, env);
-      // add a branch to the end block at the end of the final block of the true case
-      lastTrueBlock.addCode(LLVMPrinter.unCondBranch(endLabel));
-      lastTrueBlock.addChild(endBlock);
-      // repeat the same for else if the case exists
-      if (elseBlock != null) {
-         BasicBlock falseBlock = new BasicBlock();
-         String falseLabel = env.getNextBranch();
-         falseBlock.addCode(LLVMPrinter.label(falseLabel));
-         block.addChild(falseBlock);
-         BasicBlock lastFalseBlock = thenBlock.genBlock(falseBlock, env);
-         lastFalseBlock.addCode(LLVMPrinter.unCondBranch(endLabel));
-         lastFalseBlock.addChild(endBlock);
-
-         // print the conditional branch at the end of the original block
-         block.addCode(LLVMPrinter.condBranch(guardData, trueLabel, falseLabel));
-      } else {
-         // with no else block, false branches to the end block instead
-         block.addCode(LLVMPrinter.condBranch(guardData, trueLabel, endLabel));
-      }
-
-      return endBlock;
+      return thenBlock.genBlock(subBlock, env);
    }
+
+
 }

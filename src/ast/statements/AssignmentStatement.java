@@ -6,6 +6,9 @@ import ast.expressions.Expression;
 import ast.types.NullType;
 import ast.types.StructType;
 import ast.types.Type;
+import instructions.Register;
+import instructions.Source;
+import instructions.StoreInstruction;
 
 public class AssignmentStatement
    extends AbstractStatement {
@@ -41,11 +44,18 @@ public class AssignmentStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block,
-                               LLVMEnvironment env) {
-      Value leftData = target.genInst(block, env);
-      Value rightData = source.genInst(block, env);
-      block.addCode(LLVMPrinter.store(leftData,rightData));
+   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+      Source storageLocation = target.genInst(block, env);
+      Source valueToStore = source.genInst(block, env);
+
+      if (!(storageLocation instanceof Register)) {
+         throw new IllegalArgumentException("Can't Store in a Non-Register");
+      }
+      Register storageRegister = (Register) storageLocation;
+
+      StoreInstruction store = new StoreInstruction(storageRegister, valueToStore);
+      block.addCode(store);
+
       return block;
    }
 }

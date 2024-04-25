@@ -2,8 +2,10 @@ package ast.expressions;
 
 import ast.*;
 import ast.types.IntType;
+import ast.types.PointerType;
 import ast.types.StructType;
 import ast.types.Type;
+import instructions.*;
 
 public class DotExpression
         extends AbstractExpression {
@@ -42,9 +44,9 @@ public class DotExpression
     }
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
         // retrieve type of item
-        Value structData = left.genInst(block, env);
+        Source structData = left.genInst(block, env);
         StructType type = (StructType) structData.getType();
 
         // find type declaration from type
@@ -53,30 +55,26 @@ public class DotExpression
         // find position of member in the struct
         int memberIndex = structDecl.locateMember(id);
 
-        // turn the index into a value
-        Value indexData = new Value(env, new IntType(),""+memberIndex);
-
-        // get next 2 regs
-        String reg = env.getNextReg();
-        String reg2 = env.getNextReg();
-
-        // format instruction strings
-        String gep = String.format("%s = getelementptr %s %s, i1 0, %s %s",
-                reg, structData.getIrType(), structData.getValue(),
-                indexData.getIrType(), indexData.getValue());
-
         // get the type of the member for the load instruction
         Declaration memberDecl = structDecl.getFields().get(memberIndex);
         Type memberType = memberDecl.getType();
 
-        String load = String.format("%s = load %s, %s",
-                reg2, env.typeToString(memberType), reg);
+        // create a literal representing the index into the struct
+        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex));
+
+        // get next 2 regs
+        Register gepResult = new Register(new PointerType(memberType.copy()));
+        Register loadResult = new Register(memberType.copy());
+
+        // format instruction strings
+        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);
+        LoadInstruction load = new LoadInstruction(loadResult, gepResult);
 
         // add instructions to the basic block
         block.addCode(gep);
         block.addCode(load);
 
         // return member value
-        return new Value(env, memberType, reg2);
+        return loadResult;
     }
 }

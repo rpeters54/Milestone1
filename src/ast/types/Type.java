@@ -1,5 +1,5 @@
 package ast.types;
 
-public interface Type
-{
+public interface Type extends Cloneable {
+    Type copy();
 }

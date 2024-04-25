@@ -47,6 +47,9 @@ public class BlockStatement
       BasicBlock tmp = block;
       for (Statement stmt : statements) {
          tmp = stmt.genBlock(tmp,env);
+         if (tmp.endsWithJump()) {
+            return tmp;
+         }
       }
       return tmp;
    }

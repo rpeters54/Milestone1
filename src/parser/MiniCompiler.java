@@ -41,7 +41,8 @@ public class MiniCompiler {
             error("Invalid Return Path");
         }
 
-
+        BasicBlock block = program.programCFG();
+        block.toLLFile("newOut.ll");
 
     }
 

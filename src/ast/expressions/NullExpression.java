@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.NullType;
 import ast.types.Type;
+import instructions.Literal;
+import instructions.Source;
 
 public class NullExpression extends AbstractExpression {
    public NullExpression(int lineNum)
@@ -16,8 +18,8 @@ public class NullExpression extends AbstractExpression {
    }
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
-      return new Value(env, new NullType(), "null");
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+      return new Literal(new NullType(), "null");
    }
 }
 

@@ -1,10 +1,8 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.ArrayType;
-import ast.types.IntType;
-import ast.types.PointerType;
-import ast.types.Type;
+import ast.types.*;
+import instructions.*;
 
 public class NewArrayExpression
     extends AbstractExpression
@@ -33,20 +31,20 @@ public class NewArrayExpression
     }
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
         // define next regs
-        String reg = env.getNextReg();
-        String reg2 = env.getNextReg();
+        Register allocaResult = new Register(new PointerType(new ArrayAllocType(size)));
+        Register castResult = new Register(new ArrayType());
 
         //define instruction strings
-        String alloca = String.format("%s = alloca [%s x i64]", reg, size);
-        String bitcast = String.format("%s = bitcast [%s x i64]* %s to i64*", reg2, size, reg);
+        AllocaInstruction alloca = new AllocaInstruction(allocaResult);
+        BitcastInstruction bitcast = new BitcastInstruction(castResult, allocaResult);
 
         //add instruction strings to basic block
         block.addCode(alloca);
         block.addCode(bitcast);
 
         //return value that represents array
-        return new Value(env, new PointerType(new IntType()), reg2);
+        return castResult;
     }
 }

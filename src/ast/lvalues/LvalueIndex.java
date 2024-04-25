@@ -6,6 +6,9 @@ import ast.types.ArrayType;
 import ast.types.IntType;
 import ast.types.PointerType;
 import ast.types.Type;
+import instructions.GetElemPtrInstruction;
+import instructions.Register;
+import instructions.Source;
 
 public class LvalueIndex implements Lvalue {
     private final int lineNum;
@@ -34,11 +37,14 @@ public class LvalueIndex implements Lvalue {
     }
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
-        Value arrData = left.genInst(block, env);
-        Value indexData = index.genInst(block, env);
-        String reg = env.getNextReg();
-        block.addCode(LLVMPrinter.GEP(reg, arrData, indexData));
-        return new Value(env, new PointerType(arrData.getType()), reg);
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+        Source arrData = left.genInst(block, env);
+        Source indexData = index.genInst(block, env);
+        Register gepResult = new Register(arrData.getType().copy());
+
+        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrData, indexData);
+        block.addCode(gep);
+
+        return gepResult;
     }
 }

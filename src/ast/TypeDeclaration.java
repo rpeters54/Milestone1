@@ -88,13 +88,4 @@ public class TypeDeclaration {
     public int hashCode() {
         return Objects.hash(name, fields);
     }
-
-    public String genGlobal(LLVMEnvironment env) {
-        StringBuilder fieldTypes = new StringBuilder();
-        for (Declaration decl : fields) {
-            fieldTypes.append(env.typeToString(decl.getType())).append(", ");
-        }
-        fieldTypes.delete(fieldTypes.length()-2, fieldTypes.length());
-        return String.format("%%struct.%s = type {%s}", name, fieldTypes);
-    }
 }

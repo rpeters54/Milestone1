@@ -64,7 +64,7 @@ fun main() int
       }
       while (true)
       {
-         print 7;
+         print 7 endl;
       }
       f(g(1,new B),new B);
       print f(g(1,new B),new B).i endl;

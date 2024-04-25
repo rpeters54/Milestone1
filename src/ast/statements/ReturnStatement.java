@@ -5,6 +5,10 @@ import ast.expressions.Expression;
 import ast.types.FunctionType;
 import ast.types.PointerType;
 import ast.types.Type;
+import instructions.Register;
+import instructions.Source;
+import instructions.StoreInstruction;
+import instructions.UnconditionalBranchInstruction;
 
 public class ReturnStatement
    extends AbstractStatement
@@ -41,9 +45,15 @@ public class ReturnStatement
 
    @Override
    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Value val = expression.genInst(block, env);
-      block.addCode(LLVMPrinter.store(val, Function.retVal));
-      block.addCode(LLVMPrinter.unCondBranch(env.getRetLabel()));
+      Source val = expression.genInst(block, env);
+      Register retVal = Function.returnReg;
+
+      StoreInstruction store = new StoreInstruction(retVal, val);
+      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+
+      block.addCode(store);
+      block.addCode(jump);
+
       return block;
    }
 }

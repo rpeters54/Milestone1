@@ -1,8 +1,10 @@
 package ast;
 
 import ast.types.*;
+import instructions.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Program {
     private final List<TypeDeclaration> types;
@@ -53,7 +55,7 @@ public class Program {
         for (Function func : funcs) {
             funcTypes.add(new FunctionType(func));
         }
-        Set<FunctionType> set = new HashSet<FunctionType>(funcTypes);
+        Set<FunctionType> set = new HashSet<>(funcTypes);
         if (funcTypes.size() != set.size()) {
             throw new TypeException("Program: Duplicate Function Definitions");
         }
@@ -89,47 +91,39 @@ public class Program {
         LLVMEnvironment env = new LLVMEnvironment();
 
         // add driver code to the top of the file
-        // addDrivers(top);
+        top.addCode(new DriverDeclarationInstruction());
 
         // add all type declarations and globals to the environment
         for (TypeDeclaration typeDecl : types) {
             env.addTypeDeclaration(typeDecl.getName(), typeDecl);
-            top.addCode(typeDecl.genGlobal(env));
+            TypeDeclarationInstruction typeDeclInst = new TypeDeclarationInstruction(typeDecl);
+            top.addCode(typeDeclInst);
         }
+
         for (Declaration decl : decls) {
-            env.addGlobalBinding(decl.getName(), decl.getType(), decl.getName());
-            top.addCode(LLVMPrinter.global(
-                    env.lookupRegBinding(decl.getName()), env.typeToString(decl.getType())));
+            Register global = new Register(new PointerType(decl.getType()), decl.getName(), true);
+            env.addGlobalBinding(decl.getName(), global);
+            GlobalRegisterDeclarationInstruction gRDI = new GlobalRegisterDeclarationInstruction(global);
+            top.addCode(gRDI);
         }
+
         for (Function func : funcs) {
             BasicBlock functionBlock = new BasicBlock();
-            env.addGlobalBinding(func.getName(), func.getType(), func.getName());
-            List<Value> paramList = new ArrayList<>();
-            for (Declaration param : func.getParams()) {
-                paramList.add(new Value(env, param.getType(), param.getName()));
-            }
-            functionBlock.addCode(LLVMPrinter.funDef(env.typeToString(func.getRetType()),
-                    env.lookupRegBinding(func.getName()),
-                    paramList));
+            FunctionStub funcStub = new FunctionStub((FunctionType) func.getType().copy(), func.getName());
+            env.addFunctionStub(func.getName(), funcStub);
+
+            List<Type> paramList = func.getParams().stream().map(Declaration::getType).collect(Collectors.toList());
+
+            FunctionDefinitionInstruction funDef = new FunctionDefinitionInstruction(funcStub, paramList);
+            functionBlock.addCode(funDef);
+
             func.genBlock(functionBlock, env);
+
             top.addChild(functionBlock);
         }
 
         return top;
     }
-
-    /*
-    void addDrivers(BasicBlock block) {
-        block.addCode("declare i8* @malloc(i64)");
-        block.addCode("declare void @free(i8*)");
-        block.addCode("declare i64 @printf(i8*, ...)");
-        block.addCode("declare i64 @scanf(i8*, ...)");
-        block.addCode("@.println = private unnamed_addr constant [5 x i8] c\"%ld\\0A\\00\", align 1");
-        block.addCode("@.print = private unnamed_addr constant [5 x i8] c\"%ld \\00\", align 1");
-        block.addCode("@.read = private unnamed_addr constant [4 x i8] c\"%ld\\00\", align 1");
-        block.addCode("@.read_scratch = common global i64 0, align 8");
-    }
-    */
 
 
 }

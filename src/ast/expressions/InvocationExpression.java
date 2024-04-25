@@ -5,9 +5,14 @@ import ast.types.FunctionType;
 import ast.types.NullType;
 import ast.types.StructType;
 import ast.types.Type;
+import instructions.CallInstruction;
+import instructions.FunctionStub;
+import instructions.Register;
+import instructions.Source;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class InvocationExpression
    extends AbstractExpression
@@ -57,16 +62,20 @@ public class InvocationExpression
    }
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
-      List<Value> argList = new ArrayList<>();
-      for (Expression arg : arguments) {
-         argList.add(arg.genInst(block,env));
-      }
-      String reg = env.getNextReg();
-      FunctionType funcType = (FunctionType) env.lookupTypeBinding(name);
-      Value funcData = new Value(env, funcType.getOutput(), env.lookupRegBinding(name));
-      block.addCode(LLVMPrinter.call(reg, funcData, argList));
-      funcData.updateValue(reg);
-      return funcData;
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+
+      // handle list of arguments
+      List<Source> argList = arguments.stream().map(arg -> arg.genInst(block, env)).collect(Collectors.toList());
+
+      // retrieve function
+      FunctionStub func = env.lookupFunction(name);
+      FunctionType funcType = (FunctionType) func.getType();
+      // allocate a reg to hold the result
+      Register callResult = new Register(funcType.getOutput().copy());
+
+      CallInstruction call = new CallInstruction(callResult, func, argList);
+      block.addCode(call);
+
+      return callResult;
    }
 }

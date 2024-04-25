@@ -2,6 +2,7 @@ package ast.expressions;
 
 import ast.*;
 import ast.types.*;
+import instructions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,21 +30,25 @@ public class NewExpression
    }
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+      // Create a copy of the type that 'id' refers to
       TypeDeclaration td = env.lookupTypeDeclaration(id);
       Type type = new StructType(-1, td.getName());
-      // add malloc for new
-      String reg = env.getNextReg();
-      Value mallocData = new Value(env, new PointerType(new VoidType()), "@malloc");
-      Value sizeData = new Value(env, new IntType(), ""+td.getSize());
-      List<Value> argList = new ArrayList<>();
-      argList.add(sizeData);
-      block.addCode(LLVMPrinter.call(reg, mallocData, argList));
-      mallocData.updateValue(reg);
-      reg = env.getNextReg();
-      block.addCode(LLVMPrinter.bitcast(reg, mallocData, env.typeToString(type)));
 
-      return new Value(env, type, reg);
+      // generate literal referring to struct size
+      Literal size = new Literal(new IntType(), Integer.toString(td.getSize()));
+      // allocate registers for both results
+      Register mallocResult = new Register(new NullType());
+      Register castResult = new Register(type.copy());
+
+      // generate both instructions and add them to the block
+      MallocCallInstruction call = new MallocCallInstruction(mallocResult, size);
+      BitcastInstruction cast = new BitcastInstruction(castResult, mallocResult);
+      block.addCode(call);
+      block.addCode(cast);
+
+      // return the result of the last operation
+      return castResult;
 
    }
 }

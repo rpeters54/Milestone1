@@ -5,6 +5,9 @@ import ast.expressions.Expression;
 import ast.types.BoolType;
 import ast.types.Type;
 import ast.types.VoidType;
+import instructions.ConditionalBranchInstruction;
+import instructions.Label;
+import instructions.Source;
 
 public class WhileStatement
    extends AbstractStatement
@@ -39,18 +42,38 @@ public class WhileStatement
 
    @Override
    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Value guardData = guard.genInst(block, env);
-      String innerLabel = env.getNextBranch();
-      String outerLabel = env.getNextBranch();
-      block.addCode(LLVMPrinter.condBranch(guardData, innerLabel, outerLabel));
+      // generate code for the guard
+      Source guardData = guard.genInst(block, env);
+
+      // generate labels and blocks
+      Label innerStub = new Label();
+      Label outerStub = new Label();
       BasicBlock inner = new BasicBlock();
-      block.addChild(inner);
-      inner.addCode(LLVMPrinter.label(innerLabel));
-      BasicBlock lastInner = body.genBlock(inner, env);
-      lastInner.addCode(LLVMPrinter.condBranch(guardData, innerLabel, outerLabel));
       BasicBlock outer = new BasicBlock();
-      lastInner.addChild(outer);
-      outer.addCode(LLVMPrinter.label(outerLabel));
+
+      // add the conditional branch to the inner and outer blocks to the parent
+      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, innerStub, outerStub);
+      block.addCode(cond);
+
+      // add the body and after blocks as children of the parent
+      block.addChild(inner);
+      block.addChild(outer);
+
+      // add label to the inner block
+      inner.addCode(innerStub);
+
+      // evaluate the body blocks
+      BasicBlock lastInner = body.genBlock(inner, env);
+
+      //if the body ends with a return/jump to somewhere else,
+      // dont put a branch to the outer at the end
+      if (!lastInner.endsWithJump()) {
+         lastInner.addCode(cond);
+         lastInner.addChild(outer);
+      }
+
+      // add the label to the outer stub
+      outer.addCode(outerStub);
       return outer;
    }
 }

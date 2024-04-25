@@ -4,6 +4,7 @@ import ast.*;
 import ast.types.FunctionType;
 import ast.types.Type;
 import ast.types.VoidType;
+import instructions.UnconditionalBranchInstruction;
 
 public class ReturnEmptyStatement
    extends AbstractStatement
@@ -32,7 +33,9 @@ public class ReturnEmptyStatement
 
    @Override
    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      block.addCode(LLVMPrinter.unCondBranch(env.getRetLabel()));
+      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      block.addCode(jump);
+
       return block;
    }
 }

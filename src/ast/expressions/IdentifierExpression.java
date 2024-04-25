@@ -1,7 +1,11 @@
 package ast.expressions;
 
 import ast.*;
+import ast.types.PointerType;
 import ast.types.Type;
+import instructions.LoadInstruction;
+import instructions.Register;
+import instructions.Source;
 
 public class IdentifierExpression
    extends AbstractExpression
@@ -20,13 +24,16 @@ public class IdentifierExpression
    }
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
-      String reg = env.getNextReg();
-      Value idData = new Value(env, env.lookupTypeBinding(id), env.lookupRegBinding(id));
-      // print load value to register
-      block.addCode(LLVMPrinter.load(reg, idData));
-      // update value object so that the location is the register loaded to
-      idData.updateValue(reg);
-      return idData;
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+      Register loadResult = new Register();
+      Register idReg = env.lookupReg(id);
+
+      PointerType ptr = (PointerType) idReg.getType();
+      loadResult.setType(ptr.getBaseType().copy());
+
+      LoadInstruction load = new LoadInstruction(loadResult, idReg);
+      block.addCode(load);
+
+      return loadResult;
    }
 }

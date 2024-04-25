@@ -3,6 +3,8 @@ package ast.lvalues;
 import ast.*;
 import ast.types.PointerType;
 import ast.types.Type;
+import instructions.Register;
+import instructions.Source;
 
 public class LvalueId implements Lvalue {
     private final int lineNum;
@@ -19,8 +21,7 @@ public class LvalueId implements Lvalue {
     }
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
-        Type type = env.lookupTypeBinding(id);
-        return new Value(env, new PointerType(type), env.lookupRegBinding(id));
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+        return env.lookupReg(id);
     }
 }

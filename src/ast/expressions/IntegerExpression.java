@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.IntType;
 import ast.types.Type;
+import instructions.Literal;
+import instructions.Source;
 
 public class IntegerExpression
    extends AbstractExpression
@@ -22,7 +24,7 @@ public class IntegerExpression
 
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
-      return new Value(env, new IntType(), value);
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+      return new Literal(new IntType(), value);
    }
 }

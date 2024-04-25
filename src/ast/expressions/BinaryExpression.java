@@ -1,9 +1,11 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.BoolType;
-import ast.types.IntType;
-import ast.types.Type;
+import ast.types.*;
+import instructions.BinaryInstruction;
+import instructions.ComparatorInstruction;
+import instructions.Register;
+import instructions.Source;
 
 public class BinaryExpression
    extends AbstractExpression
@@ -54,9 +56,9 @@ public class BinaryExpression
    private static final String AND_OPERATOR = "&&";
    private static final String OR_OPERATOR = "||";
 
-   public static enum Operator
+   public enum Operator
    {
-      TIMES, DIVIDE, PLUS, MINUS, LT, GT, LE, GE, EQ, NE, AND, OR
+      TIMES, DIVIDE, PLUS, MINUS, LT, GT, LE, GE, EQ, NE, AND, OR, XOR //added for unary
    }
 
 
@@ -72,12 +74,23 @@ public class BinaryExpression
             throw new TypeException(String.format("Binary Expression: Operands " +
                     "Wrong Type for Arithmetic Expression, line: %d", getLineNum()));
          }
-         case LT, LE, GT, GE, EQ, NE -> {
+         case LT, LE, GT, GE -> {
             if (lType instanceof IntType && rType instanceof IntType) {
                return new BoolType();
             }
             throw new TypeException(String.format("Binary Expression: Operands " +
                     "Wrong Type for Arithmetic Comparison, line: %d", getLineNum()));
+         }
+         case EQ, NE -> {
+            Boolean lNullCheck = lType instanceof StructType || lType instanceof NullType;
+            Boolean rNullCheck = rType instanceof StructType || rType instanceof NullType;
+
+            if (lType instanceof IntType && rType instanceof IntType
+            || lNullCheck && rNullCheck){
+               return new BoolType();
+            }
+            throw new TypeException(String.format("Binary Expression: Operands " +
+                    "Wrong Type for Equality Comparison, line: %d", getLineNum()));
          }
          case AND, OR -> {
             if (lType instanceof BoolType && rType instanceof BoolType) {
@@ -92,50 +105,37 @@ public class BinaryExpression
    }
 
    @Override
-   public Value genInst(BasicBlock block, LLVMEnvironment env) {
-      Value leftData = left.genInst(block,env);
-      Value rightData = right.genInst(block,env);
-      String reg = env.getNextReg();
-      String opName = switch (operator) {
-         case TIMES -> "mul";
-         case DIVIDE -> "sdiv";
-         case PLUS -> "add";
-         case MINUS -> "sub";
-         case LT -> "slt";
-         case GT -> "sgt";
-         case LE -> "sle";
-         case GE -> "sge";
-         case EQ -> "eq";
-         case NE -> "ne";
-         case AND -> "and";
-         case OR -> "or";
-      };
+   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+      Source leftSource = left.genInst(block,env);
+      Source rightSource = right.genInst(block,env);
+
+      Register result = new Register();
 
       // print instruction output based on the operator
       switch (operator) {
          case TIMES, DIVIDE, PLUS, MINUS -> {
             // format binary expression string
-            String binop = String.format("%s = %s %s %s, %s", reg, opName,
-                    leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            BinaryInstruction binop = new BinaryInstruction(result, operator, leftSource, rightSource);
             // add it to the basic block
             block.addCode(binop);
-            return new Value(env, new IntType(), reg);
+            result.setType(new IntType());
+            return result;
          }
          case LT, LE, GT, GE, EQ, NE -> {
             // format binary expression string
-            String cmp = String.format("%s = icmp %s %s %s, %s",
-                    reg, opName, leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            ComparatorInstruction cmp = new ComparatorInstruction(result, operator, leftSource, rightSource);
             // add it to the basic block
             block.addCode(cmp);
-            return new Value(env, new BoolType(), reg);
+            result.setType(new BoolType());
+            return result;
          }
          case AND, OR -> {
             // format binary expression string
-            String binop = String.format("%s = %s %s %s, %s", reg, opName,
-                    leftData.getIrType(), leftData.getValue(), rightData.getValue());
+            BinaryInstruction binop = new BinaryInstruction(result, operator, leftSource, rightSource);
             // add it to the basic block
             block.addCode(binop);
-            return new Value(env, new BoolType(), reg);
+            result.setType(new BoolType());
+            return result;
          }
          default -> throw new IllegalArgumentException("Binary Expression: Failed to Resolve Binop");
       }

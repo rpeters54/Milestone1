@@ -4,6 +4,10 @@ import ast.*;
 import ast.types.BoolType;
 import ast.types.IntType;
 import ast.types.Type;
+import instructions.BinaryInstruction;
+import instructions.Literal;
+import instructions.Register;
+import instructions.Source;
 
 public class UnaryExpression
         extends AbstractExpression {
@@ -30,7 +34,7 @@ public class UnaryExpression
     private static final String NOT_OPERATOR = "!";
     private static final String MINUS_OPERATOR = "-";
 
-    public static enum Operator {
+    public enum Operator {
         NOT, MINUS
     }
 
@@ -58,21 +62,28 @@ public class UnaryExpression
     }
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
-        Value operandData = operand.genInst(block, env);
-        String reg = env.getNextReg();
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+        Source operandData = operand.genInst(block, env);
+        Register unaryResult = new Register();
+
         switch (operator) {
             case MINUS -> {
-                Value zero = new Value(env, new IntType(), "0");
-                block.addCode(LLVMPrinter.binop(reg, "sub", zero, operandData));
-                return new Value(env, new IntType(), reg);
+                Literal zero = new Literal(new IntType(), "0");
+                unaryResult.setType(new IntType());
+                BinaryInstruction binop = new BinaryInstruction(unaryResult,
+                        BinaryExpression.Operator.MINUS, zero, operandData);
+                block.addCode(binop);
+                return unaryResult;
             }
             case NOT -> {
-                Value inv = new Value(env, new BoolType(), "1");
-                block.addCode(LLVMPrinter.binop(reg, "xor", inv, operandData));
-                return new Value(env, new BoolType(), reg);
+                Literal one = new Literal(new BoolType(), "1");
+                unaryResult.setType(new BoolType());
+                BinaryInstruction binop = new BinaryInstruction(unaryResult,
+                        BinaryExpression.Operator.XOR, one, operandData);
+                block.addCode(binop);
+                return unaryResult;
             }
-            default -> {throw new IllegalArgumentException("Invalid operand");}
+            default -> throw new IllegalArgumentException("Invalid operand");
         }
     }
 }

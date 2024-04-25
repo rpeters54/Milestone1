@@ -3,6 +3,7 @@ package ast.statements;
 import ast.*;
 import ast.expressions.Expression;
 import ast.types.*;
+import instructions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,11 +37,12 @@ public class DeleteStatement
 
    @Override
    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Value deleteItem = expression.genInst(block, env);
-      List<Value> arglist = new ArrayList<>();
-      arglist.add(deleteItem);
-      Value free = new Value(env, new VoidType(), "@free");
-      block.addCode(LLVMPrinter.call(null, free, arglist));
+      Source deleteItem = expression.genInst(block, env);
+      Register freeResult = new Register(new VoidType());
+
+      FreeCallInstruction call = new FreeCallInstruction(freeResult, deleteItem);
+      block.addCode(call);
+
       return block;
    }
 }

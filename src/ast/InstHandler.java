@@ -1,5 +1,7 @@
 package ast;
 
+import instructions.Source;
+
 public interface InstHandler {
-    public Value genInst(BasicBlock block, LLVMEnvironment env);
+    Source genInst(BasicBlock block, LLVMEnvironment env);
 }

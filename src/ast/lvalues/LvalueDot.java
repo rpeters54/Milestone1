@@ -6,6 +6,12 @@ import ast.types.IntType;
 import ast.types.PointerType;
 import ast.types.StructType;
 import ast.types.Type;
+import instructions.GetElemPtrInstruction;
+import instructions.Literal;
+import instructions.Register;
+import instructions.Source;
+
+import java.util.List;
 
 public class LvalueDot implements Lvalue {
     private final int lineNum;
@@ -45,20 +51,26 @@ public class LvalueDot implements Lvalue {
 
 
     @Override
-    public Value genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source genInst(BasicBlock block, LLVMEnvironment env) {
         //get struct metadata
-        Value structData = left.genInst(block, env);
+        Source structData = left.genInst(block, env);
         StructType type = (StructType) structData.getType();
         TypeDeclaration structDecl = env.lookupTypeDeclaration(type.getName());
+
         //find the index of the member in the struct
         int memberIndex = structDecl.locateMember(id);
-        Value indexData = new Value(env, new IntType(), ""+memberIndex);
-        Declaration memberDecl = structDecl.getFields().get(memberIndex);
+
         //get the type of the member declaration
+        Declaration memberDecl = structDecl.getFields().get(memberIndex);
         Type memberType = memberDecl.getType();
-        String reg = env.getNextReg();
-        block.addCode(LLVMPrinter.GEP(reg, structData, indexData));
+
+        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex));
+        Register gepResult = new Register(new PointerType(memberType.copy()));
+
+        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);
+        block.addCode(gep);
+
         //return metadata for pointer to struct member
-        return new Value(env, new PointerType(memberType), reg);
+        return gepResult;
     }
 }
