@@ -35,9 +35,19 @@ public class PrintStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Source printItem = expression.genInst(block, env);
-      Register dummy = new Register(new IntType());
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
+      Source printItem = expression.toStackInstructions(block, func);
+      return evalPrint(block, printItem);
+   }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      Source printItem = expression.toSSAInstructions(block, func);
+      return evalPrint(block, printItem);
+   }
+
+   public BasicBlock evalPrint(BasicBlock block, Source printItem) {
+      Register dummy = Register.genTypedLocalRegister(new IntType(), block.getLabel());
       PrintCallInstruction print = new PrintCallInstruction(dummy, printItem, false);
       block.addCode(print);
       return block;

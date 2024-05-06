@@ -24,4 +24,15 @@ public class GlobalRegisterDeclarationInstruction implements Instruction {
         }
         return String.format("%s = common global %s %s", self.getValue(), deref, baseValue);
     }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        if (item.equals(self)) {
+            if (replacement instanceof Register) {
+                replacement.setLabel(self.getLabel());
+                self = (Register) replacement;
+            }
+            throw new RuntimeException("GlobalRegisterDeclarationInstruction: Tried to replace necessary Register with Source");
+        }
+    }
 }

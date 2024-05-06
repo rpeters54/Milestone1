@@ -1,14 +1,8 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.FunctionType;
-import ast.types.NullType;
-import ast.types.StructType;
-import ast.types.Type;
-import instructions.CallInstruction;
-import instructions.FunctionStub;
-import instructions.Register;
-import instructions.Source;
+import ast.types.*;
+import instructions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,20 +56,35 @@ public class InvocationExpression
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
       // handle list of arguments
-      List<Source> argList = arguments.stream().map(arg -> arg.genInst(block, env)).collect(Collectors.toList());
+      List<Source> argList = arguments.stream().map(arg -> arg.toStackInstructions(block, func)).collect(Collectors.toList());
+      return evalCall(block, func, argList);
+   }
 
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      // handle list of arguments
+      List<Source> argList = arguments.stream().map(arg -> arg.toSSAInstructions(block, func)).collect(Collectors.toList());
+      return evalCall(block, func, argList);
+   }
+
+   private Source evalCall(BasicBlock block, IrFunction func, List<Source> argList) {
       // retrieve function
-      FunctionStub func = env.lookupFunction(name);
-      FunctionType funcType = (FunctionType) func.getType();
-      // allocate a reg to hold the result
-      Register callResult = new Register(funcType.getOutput().copy());
+      Function calledFunction = func.lookupFunction(name);
+      FunctionType funcType = new FunctionType(calledFunction);
 
-      CallInstruction call = new CallInstruction(callResult, func, argList);
-      block.addCode(call);
 
-      return callResult;
+      if (funcType.getOutput() instanceof VoidType) {
+         CallInstruction call = new CallInstruction(null, calledFunction, argList);
+         block.addCode(call);
+         return new Literal(new NullType(), "null", block.getLabel());
+      } else {
+         // allocate a reg to hold the result
+         Register callResult = Register.genTypedLocalRegister(funcType.getOutput().copy(), block.getLabel());
+         CallInstruction call = new CallInstruction(callResult, calledFunction, argList);
+         block.addCode(call);
+         return callResult;
+      }
    }
 }

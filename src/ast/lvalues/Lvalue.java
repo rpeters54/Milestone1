@@ -1,6 +1,8 @@
 package ast.lvalues;
 
-import ast.InstHandler;
+import ast.InstructionHandler;
 import ast.Typed;
 
-public interface Lvalue extends Typed, InstHandler {}
+public interface Lvalue extends Typed, InstructionHandler {
+    String getId();
+}

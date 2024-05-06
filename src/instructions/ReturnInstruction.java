@@ -11,4 +11,12 @@ public class ReturnInstruction implements JumpInstruction {
     public String toString() {
         return String.format("ret %s %s", retVal.getTypeString(), retVal.getValue());
     }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        if (item.equals(retVal)) {
+            replacement.setLabel(retVal.getLabel());
+            retVal = replacement;
+        }
+    }
 }

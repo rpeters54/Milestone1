@@ -4,9 +4,6 @@ import ast.*;
 import ast.types.*;
 import instructions.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class NewExpression
    extends AbstractExpression
 {
@@ -30,16 +27,25 @@ public class NewExpression
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      return evalMalloc(block, func);
+   }
+
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      return evalMalloc(block, func);
+   }
+
+   private Source evalMalloc(BasicBlock block, IrFunction func) {
       // Create a copy of the type that 'id' refers to
-      TypeDeclaration td = env.lookupTypeDeclaration(id);
+      TypeDeclaration td = func.lookupTypeDeclaration(id);
       Type type = new StructType(-1, td.getName());
 
       // generate literal referring to struct size
-      Literal size = new Literal(new IntType(), Integer.toString(td.getSize()));
+      Literal size = new Literal(new IntType(), Integer.toString(td.getSize()), block.getLabel());
       // allocate registers for both results
-      Register mallocResult = new Register(new NullType());
-      Register castResult = new Register(type.copy());
+      Register mallocResult = Register.genTypedLocalRegister(new NullType(), block.getLabel());
+      Register castResult = Register.genTypedLocalRegister(type.copy(), block.getLabel());
 
       // generate both instructions and add them to the block
       MallocCallInstruction call = new MallocCallInstruction(mallocResult, size);
@@ -49,6 +55,5 @@ public class NewExpression
 
       // return the result of the last operation
       return castResult;
-
    }
 }

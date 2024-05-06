@@ -86,44 +86,48 @@ public class Program {
         return true;
     }
 
-    public BasicBlock programCFG() {
-        BasicBlock top = new BasicBlock();
-        LLVMEnvironment env = new LLVMEnvironment();
+    public IrProgram toCFG(CFGType type) {
+        IrProgram prog = new IrProgram();
 
         // add driver code to the top of the file
-        top.addCode(new DriverDeclarationInstruction());
+        prog.addToHeader(new DriverDeclarationInstruction());
 
-        // add all type declarations and globals to the environment
+        // add type declarations to env and program header
         for (TypeDeclaration typeDecl : types) {
-            env.addTypeDeclaration(typeDecl.getName(), typeDecl);
+            prog.addTypeDeclaration(typeDecl);
             TypeDeclarationInstruction typeDeclInst = new TypeDeclarationInstruction(typeDecl);
-            top.addCode(typeDeclInst);
+            prog.addToHeader(typeDeclInst);
         }
 
+        // add all global registers
         for (Declaration decl : decls) {
-            Register global = new Register(new PointerType(decl.getType()), decl.getName(), true);
-            env.addGlobalBinding(decl.getName(), global);
+            Register global = Register.genGlobalRegister(new PointerType(decl.getType()), decl.getName());
+            prog.addGlobalBinding(decl.getName(), global);
             GlobalRegisterDeclarationInstruction gRDI = new GlobalRegisterDeclarationInstruction(global);
-            top.addCode(gRDI);
+            prog.addToHeader(gRDI);
         }
 
-        for (Function func : funcs) {
-            BasicBlock functionBlock = new BasicBlock();
-            FunctionStub funcStub = new FunctionStub((FunctionType) func.getType().copy(), func.getName());
-            env.addFunctionStub(func.getName(), funcStub);
-
-            List<Type> paramList = func.getParams().stream().map(Declaration::getType).collect(Collectors.toList());
-
-            FunctionDefinitionInstruction funDef = new FunctionDefinitionInstruction(funcStub, paramList);
-            functionBlock.addCode(funDef);
-
-            func.genBlock(functionBlock, env);
-
-            top.addChild(functionBlock);
+        // add each function
+        switch(type) {
+            case STACK -> {
+                for (Function func : funcs) {
+                    IrFunction processedFunction = func.toStackCFG(prog);
+                    prog.addIrFunction(processedFunction);
+                }
+            }
+            case SSA -> {
+                for (Function func : funcs) {
+                    IrFunction processedFunction = func.toSSACFG(prog);
+                    prog.addIrFunction(processedFunction);
+                }
+            }
         }
 
-        return top;
+        return prog;
     }
 
 
+    public enum CFGType {
+        STACK, SSA
+    }
 }

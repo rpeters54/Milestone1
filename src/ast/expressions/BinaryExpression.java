@@ -105,11 +105,21 @@ public class BinaryExpression
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      Source leftSource = left.genInst(block,env);
-      Source rightSource = right.genInst(block,env);
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      Source leftSource = left.toStackInstructions(block, func);
+      Source rightSource = right.toStackInstructions(block, func);
+      return evalBinop(block, leftSource, rightSource);
+   }
 
-      Register result = new Register();
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      Source leftSource = left.toSSAInstructions(block, func);
+      Source rightSource = right.toSSAInstructions(block, func);
+      return evalBinop(block, leftSource, rightSource);
+   }
+
+   private Source evalBinop(BasicBlock block, Source leftSource, Source rightSource) {
+      Register result = Register.genLocalRegister(block.getLabel());
 
       // print instruction output based on the operator
       switch (operator) {

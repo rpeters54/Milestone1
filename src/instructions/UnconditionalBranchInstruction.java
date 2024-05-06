@@ -11,4 +11,9 @@ public class UnconditionalBranchInstruction implements JumpInstruction {
     public String toString() {
         return String.format("br label %%%s", stub.getValue());
     }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        //do nothing
+    }
 }

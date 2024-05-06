@@ -6,6 +6,7 @@ import ast.expressions.Expression;
 import ast.types.NullType;
 import ast.types.StructType;
 import ast.types.Type;
+import instructions.PhiInstruction;
 import instructions.Register;
 import instructions.Source;
 import instructions.StoreInstruction;
@@ -44,9 +45,9 @@ public class AssignmentStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Source storageLocation = target.genInst(block, env);
-      Source valueToStore = source.genInst(block, env);
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
+      Source storageLocation = target.toStackInstructions(block, func);
+      Source valueToStore = source.toStackInstructions(block, func);
 
       if (!(storageLocation instanceof Register)) {
          throw new IllegalArgumentException("Can't Store in a Non-Register");
@@ -58,4 +59,37 @@ public class AssignmentStatement
 
       return block;
    }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      Source storageLocation = target.toSSAInstructions(block, func);
+      Source valueToStore = source.toSSAInstructions(block, func);
+
+      // store array and struct members
+      if (storageLocation instanceof Register) {
+         Register storageRegister = (Register) storageLocation;
+         StoreInstruction store = new StoreInstruction(storageRegister, valueToStore);
+         block.addCode(store);
+         return block;
+      }
+
+      // check whether the target is a local or a global
+      if (func.isBound(target.getId())) {
+         // if it's a local add it to the block bindings
+         block.addLocalBinding(target.getId(), valueToStore);
+         return block;
+      }
+
+      Register globalLookup = func.lookupGlobal(target.getId());
+      // if it's a global store it like usual
+      if (globalLookup != null) {
+         StoreInstruction store = new StoreInstruction(globalLookup, valueToStore);
+         block.addCode(store);
+         return block;
+      }
+
+      throw new IllegalArgumentException("Assign.toSSABlocks(): failed to find bound value");
+   }
+
+
 }

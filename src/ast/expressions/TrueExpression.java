@@ -21,8 +21,13 @@ public class TrueExpression
 
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      return new Literal(new BoolType(), "true");
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new BoolType(), "true", block.getLabel());
+   }
+
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new BoolType(), "true", block.getLabel());
    }
 }
 

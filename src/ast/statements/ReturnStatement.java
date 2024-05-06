@@ -3,7 +3,6 @@ package ast.statements;
 import ast.*;
 import ast.expressions.Expression;
 import ast.types.FunctionType;
-import ast.types.PointerType;
 import ast.types.Type;
 import instructions.Register;
 import instructions.Source;
@@ -44,8 +43,8 @@ public class ReturnStatement
 
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Source val = expression.genInst(block, env);
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
+      Source val = expression.toStackInstructions(block, func);
       Register retVal = Function.returnReg;
 
       StoreInstruction store = new StoreInstruction(retVal, val);
@@ -56,4 +55,17 @@ public class ReturnStatement
 
       return block;
    }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      Source retVal = expression.toSSAInstructions(block, func);
+      Function.returnPhi.addMember(retVal);
+
+      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      block.addCode(jump);
+
+      return block;
+   }
+
+
 }

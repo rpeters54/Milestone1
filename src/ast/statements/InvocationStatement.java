@@ -1,12 +1,8 @@
 package ast.statements;
 
 
-import ast.BasicBlock;
-import ast.LLVMEnvironment;
-import ast.TypeEnvironment;
-import ast.TypeException;
+import ast.*;
 import ast.expressions.Expression;
-import ast.statements.AbstractStatement;
 import ast.types.Type;
 
 public class InvocationStatement
@@ -31,8 +27,14 @@ public class InvocationStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      expression.genInst(block, env);
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
+      expression.toStackInstructions(block, func);
+      return block;
+   }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      expression.toSSAInstructions(block, func);
       return block;
    }
 }

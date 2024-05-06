@@ -13,4 +13,10 @@ public class DriverDeclarationInstruction implements Instruction {
                 +"@.read = private unnamed_addr constant [4 x i8] c\"%ld\\00\", align 1\n"
                 +"@.read_scratch = common global i64 0, align 8\n";
     }
+
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        //do nothing
+    }
 }

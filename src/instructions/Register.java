@@ -3,10 +3,14 @@ package instructions;
 import ast.types.NullType;
 import ast.types.Type;
 
+import java.util.Objects;
+
 public class Register implements Source {
     private Type type;
     private String value;
-    private Boolean isGlobal;
+    private Label label;
+    private boolean isGlobal;
+    private boolean isMember;
 
     private static int regCount = 0;
 
@@ -14,23 +18,52 @@ public class Register implements Source {
         regCount = 0;
     }
 
-    public Register(Type type, String val, Boolean isGlobal) {
+    public Register(Type type, String val, Label label, boolean isGlobal, boolean isMember) {
         this.type = type;
         this.value = val;
+        this.label = label;
         this.isGlobal = isGlobal;
+        this.isMember = isMember;
     }
 
-    //generic local register constructor
-    public Register() {
-        this.type = new NullType();
-        this.value = Integer.toString(regCount++);
-        this.isGlobal = false;
+    public static Register genLocalRegister(Label label) {
+        return new Register(
+                new NullType(),
+                Integer.toString(regCount++),
+                label,
+                false,
+                false
+        );
     }
 
-    public Register(Type type) {
-        this.type = type;
-        this.value = Integer.toString(regCount++);
-        this.isGlobal = false;
+    public static Register genTypedLocalRegister(Type type, Label label) {
+        return new Register(
+                type,
+                Integer.toString(regCount++),
+                label,
+                false,
+                false
+        );
+    }
+
+    public static Register genGlobalRegister(Type type, String name) {
+        return new Register(
+                type,
+                name,
+                null,
+                true,
+                false
+        );
+    }
+
+    public static Register genMemberRegister(Type type, Label label) {
+        return new Register(
+                type,
+                Integer.toString(regCount++),
+                label,
+                false,
+                true
+        );
     }
 
     public void setType(Type type) {
@@ -42,12 +75,26 @@ public class Register implements Source {
     }
 
     @Override
+    public Label getLabel() {
+        return label;
+    }
+
+    public String getName() {
+        return value;
+    }
+
+    @Override
     public String getValue() {
         if (isGlobal) {
             return "@"+value;
         } else {
-            return "%"+value;
+            return "%r"+value;
         }
+    }
+
+    @Override
+    public void setLabel(Label label) {
+        this.label = label;
     }
 
     @Override
@@ -55,7 +102,28 @@ public class Register implements Source {
         return TypeMap.ttos(type);
     }
 
-    public Boolean getGlobal() {
+    @Override
+    public Source copy() {
+        return new Register(type, value, label, isGlobal, isMember);
+    }
+
+    public boolean isGlobal() {
         return isGlobal;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Register register = (Register) o;
+        return isGlobal == register.isGlobal
+                && isMember == register.isMember
+                && Objects.equals(type, register.type)
+                && Objects.equals(value, register.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, value, isGlobal, isMember);
     }
 }

@@ -1,7 +1,6 @@
 package ast.lvalues;
 
 import ast.*;
-import ast.types.PointerType;
 import ast.types.Type;
 import instructions.Register;
 import instructions.Source;
@@ -15,13 +14,22 @@ public class LvalueId implements Lvalue {
         this.id = id;
     }
 
+    public String getId() {
+        return id;
+    }
+
     @Override
     public Type typecheck(TypeEnvironment env) throws TypeException {
         return env.lookup(id);
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
-        return env.lookupReg(id);
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
+        return func.lookupReg(id);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        return null;
     }
 }

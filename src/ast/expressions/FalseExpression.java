@@ -20,7 +20,12 @@ public class FalseExpression
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      return new Literal(new BoolType(), "false");
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new BoolType(), "false", block.getLabel());
+   }
+
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new BoolType(), "false", block.getLabel());
    }
 }

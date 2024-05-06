@@ -62,13 +62,23 @@ public class UnaryExpression
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
-        Source operandData = operand.genInst(block, env);
-        Register unaryResult = new Register();
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
+        Source operandData = operand.toStackInstructions(block, func);
+        return evalUnary(block, operandData);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        Source operandData = operand.toSSAInstructions(block, func);
+        return evalUnary(block, operandData);
+    }
+
+    private Source evalUnary(BasicBlock block, Source operandData) {
+        Register unaryResult = Register.genLocalRegister(block.getLabel());
 
         switch (operator) {
             case MINUS -> {
-                Literal zero = new Literal(new IntType(), "0");
+                Literal zero = new Literal(new IntType(), "0", block.getLabel());
                 unaryResult.setType(new IntType());
                 BinaryInstruction binop = new BinaryInstruction(unaryResult,
                         BinaryExpression.Operator.MINUS, zero, operandData);
@@ -76,7 +86,7 @@ public class UnaryExpression
                 return unaryResult;
             }
             case NOT -> {
-                Literal one = new Literal(new BoolType(), "1");
+                Literal one = new Literal(new BoolType(), "1", block.getLabel());
                 unaryResult.setType(new BoolType());
                 BinaryInstruction binop = new BinaryInstruction(unaryResult,
                         BinaryExpression.Operator.XOR, one, operandData);

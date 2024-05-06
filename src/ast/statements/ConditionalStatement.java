@@ -7,7 +7,7 @@ import ast.types.Type;
 import ast.types.VoidType;
 import instructions.*;
 
-import java.util.List;
+import java.util.*;
 
 public class ConditionalStatement
    extends AbstractStatement
@@ -53,68 +53,127 @@ public class ConditionalStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
 
       // evaluate the guard
-      Source guardData = guard.genInst(block, env);
+      Source guardData = guard.toStackInstructions(block, func);
 
       // create and traverse true basic block
       Label trueStub = new Label();
-      BasicBlock lastTrueBlock = makeSubBlock(block, thenBlock,trueStub, env);
+      BasicBlock lastTrueBlock = makeStackSubBlock(block, thenBlock,trueStub, func);
       boolean thenReturns = lastTrueBlock.endsWithJump();
 
-      BasicBlock endBlock = new BasicBlock();
 
-      if (elseBlock != null) {
-         Label falseStub = new Label();
-         BasicBlock lastFalseBlock = makeSubBlock(block, elseBlock, falseStub, env);
-         boolean elseReturns = lastFalseBlock.endsWithJump();
-         // print the conditional branch at the end of the original block
-         ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
-         block.addCode(cond);
-         if (!(thenReturns && elseReturns)) {
-            Label endStub = new Label();
-            endBlock.addCode(endStub);
+      Label falseStub = new Label();
+      BasicBlock lastFalseBlock = makeStackSubBlock(block, elseBlock, falseStub, func);
+      boolean elseReturns = lastFalseBlock.endsWithJump();
+
+      // print the conditional branch at the end of the original block
+      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
+      block.addCode(cond);
+      if (!(thenReturns && elseReturns)) {
+         BasicBlock endBlock = new BasicBlock();
+         func.addToQueue(endBlock);
+         Label endStub = new Label();
+         endBlock.setLabel(endStub);
+         if (!thenReturns) {
             UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
             lastTrueBlock.addCode(trueToEnd);
             lastTrueBlock.addChild(endBlock);
+         }
+         if (!elseReturns) {
             UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
             lastFalseBlock.addCode(falseToEnd);
             lastFalseBlock.addChild(endBlock);
-            return endBlock;
          }
-         return lastFalseBlock;
-      } else {
-         Label endStub = new Label();
-         endBlock.addCode(endStub);
-         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
-         lastTrueBlock.addCode(trueToEnd);
-         lastTrueBlock.addChild(endBlock);
-         // with no else block, false branches to the end block instead
-         ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, endStub);
-         block.addCode(cond);
          return endBlock;
+      } else {
+         return lastFalseBlock;
       }
    }
 
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      Source guardData = guard.toSSAInstructions(block, func);
+
+      // create and traverse true basic block
+      Label trueStub = new Label();
+      BasicBlock lastTrueBlock = makeSSASubBlock(block, thenBlock, trueStub, func);
+      boolean thenReturns = lastTrueBlock.endsWithJump();
+
+
+      Label falseStub = new Label();
+      BasicBlock lastFalseBlock = makeSSASubBlock(block, elseBlock, falseStub, func);
+      boolean elseReturns = lastFalseBlock.endsWithJump();
 
 
 
+      // print the conditional branch at the end of the original block
+      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
+      block.addCode(cond);
+
+      if (thenReturns && elseReturns) {
+         return lastFalseBlock;
+      }
+
+      BasicBlock endBlock = new BasicBlock();
+      func.addToQueue(endBlock);
+      Label endStub = new Label();
+      endBlock.setLabel(endStub);
+
+      if (!thenReturns && elseReturns) {
+         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+         lastTrueBlock.addCode(trueToEnd);
+         lastTrueBlock.addChild(endBlock);
+      }
+
+      if (!elseReturns && thenReturns) {
+         UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
+         lastFalseBlock.addCode(falseToEnd);
+         lastFalseBlock.addChild(endBlock);
+      }
+
+      if (!elseReturns && !thenReturns) {
+         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+         lastTrueBlock.addCode(trueToEnd);
+         lastTrueBlock.addChild(endBlock);
+         UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
+         lastFalseBlock.addCode(falseToEnd);
+         lastFalseBlock.addChild(endBlock);
+         endBlock.reconcileBranch(lastTrueBlock, lastFalseBlock);
+      }
+
+      return endBlock;
+   }
 
 
-
-
-   public BasicBlock makeSubBlock(BasicBlock parentBlock, Statement elif, Label subLabel, LLVMEnvironment env) {
+   public BasicBlock makeStackSubBlock(BasicBlock parentBlock, Statement elif, Label subLabel, IrFunction func) {
       // create the then basic block and add its label
       BasicBlock subBlock = new BasicBlock();
-      subBlock.addCode(subLabel);
+      func.addToQueue(subBlock);
+      subBlock.setLabel(subLabel);
 
       // add the true block to the list of the first block's children
       parentBlock.addChild(subBlock);
 
       // evaluate the internals of the true block, possibly generating more blocks
       // keep track of the last block made
-      return elif.genBlock(subBlock, env);
+      return elif.toStackBlocks(subBlock, func);
+   }
+
+   public BasicBlock makeSSASubBlock(BasicBlock parentBlock, Statement elif, Label subLabel, IrFunction func) {
+      // create the child basic block and add its label
+      BasicBlock subBlock = new BasicBlock();
+
+      func.addToQueue(subBlock);
+      subBlock.setLabel(subLabel);
+
+      // add the true block to the list of the first block's children
+      parentBlock.addChild(subBlock);
+
+      // evaluate the internals of the true block, possibly generating more blocks
+      // keep track of the last block made
+      return elif.toSSABlocks(subBlock, func);
    }
 
 

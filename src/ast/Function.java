@@ -8,8 +8,9 @@ import ast.types.VoidType;
 import instructions.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
-public class Function implements Typed, BlockHandler {
+public class Function implements Typed {
     private final int lineNum;
     private final String name;
     private final Type retType;
@@ -81,11 +82,17 @@ public class Function implements Typed, BlockHandler {
 
     public static Label returnLabel;
     public static Register returnReg;
+    public static PhiInstruction returnPhi;
 
-    @Override
-    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-        // reset the register count back to zero
+
+    public IrFunction toStackCFG(IrProgram prog) {
+        IrFunction func = new IrFunction(prog, this);
+        BasicBlock prologue = func.getBody();
+        prologue.setLabel(new Label("prologue"));
+
+        // reset the register and label count back to zero
         Register.resetCount();
+        Label.resetLabelCount();
 
         List<Declaration> allDecls = new ArrayList<>(params);
         allDecls.addAll(locals);
@@ -93,38 +100,37 @@ public class Function implements Typed, BlockHandler {
         // collect all implicitly defined regs
         List<Register> implicitRegs = new ArrayList<>();
         for (Declaration param: params) {
-            implicitRegs.add(new Register(param.getType().copy()));
+            implicitRegs.add(Register.genTypedLocalRegister(param.getType().copy(), prologue.getLabel()));
         }
 
-        // one register has to be skipped
-        Register skip = new Register();
 
-        // declare a container to hold the return value (helps with cleanup)
-        returnReg = new Register(new PointerType(retType.copy()));
-        AllocaInstruction returnAlloca = new AllocaInstruction(returnReg);
-        block.addCode(returnAlloca);
+        // if non-void return, declare a container to hold the return value (helps with cleanup)
+        if (!(retType instanceof VoidType)) {
+            returnReg = Register.genTypedLocalRegister(new PointerType(retType.copy()), prologue.getLabel());
+            AllocaInstruction returnAlloca = new AllocaInstruction(returnReg);
+            prologue.addCode(returnAlloca);
+        }
 
         //declare a label for returns to jump to
-        returnLabel = new Label();
+        returnLabel = new Label("returnLabel");
 
         for (Declaration decl: allDecls) {
-            Register localVar = new Register(new PointerType(decl.getType().copy()));
+            Register localVar = Register.genTypedLocalRegister(new PointerType(decl.getType().copy()), prologue.getLabel());
             AllocaInstruction alloca = new AllocaInstruction(localVar);
-            block.addCode(alloca);
-            env.addLocalBinding(decl.getName(), localVar);
+            prologue.addCode(alloca);
+            func.addLocalBinding(decl.getName(), localVar);
         }
+
         for (int i = 0; i < params.size(); i++) {
             Declaration param = params.get(i);
             Register implicitReg = implicitRegs.get(i);
-            Register localVar = env.lookupReg(param.getName());
+            Register localVar = func.lookupReg(param.getName());
             StoreInstruction store = new StoreInstruction(localVar, implicitReg);
-            block.addCode(store);
+            prologue.addCode(store);
         }
 
-        // add the function epilogue
-        BasicBlock endOfBody = body.genBlock(block,env);
-        BasicBlock lastBlock = new BasicBlock();
-        endOfBody.addChild(lastBlock);
+
+        BasicBlock endOfBody = body.toStackBlocks(func.getBody(), func);
 
         // if the last statement does not end with a call to return, and a branch to the return statement
         if (!endOfBody.endsWithJump()) {
@@ -132,22 +138,142 @@ public class Function implements Typed, BlockHandler {
             endOfBody.addCode(returnBridge);
         }
 
+        BasicBlock epilogue = new BasicBlock();
+        endOfBody.addChild(epilogue);
+        func.addToQueue(epilogue);
+
         //add the return jump label
-        lastBlock.addCode(returnLabel);
+        epilogue.setLabel(returnLabel);
 
         if (retType instanceof VoidType) {
             ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
-            lastBlock.addCode(retVoid);
+            epilogue.addCode(retVoid);
         } else {
-            Register loadResult = new Register(retType.copy());
+            Register loadResult = Register.genTypedLocalRegister(retType.copy(), epilogue.getLabel());
             LoadInstruction load = new LoadInstruction(loadResult, returnReg);
             ReturnInstruction ret = new ReturnInstruction(loadResult);
 
-            lastBlock.addCode(load);
-            lastBlock.addCode(ret);
+            epilogue.addCode(load);
+            epilogue.addCode(ret);
         }
-        lastBlock.addCode(new EndOfFunction());
 
-        return block;
+        return func;
     }
+
+
+    public IrFunction toSSACFG(IrProgram prog) {
+        IrFunction func = new IrFunction(prog, this);
+        BasicBlock prologue = func.getBody();
+        prologue.setLabel(new Label("prologue"));
+
+        // reset the register and label count back to zero
+        Register.resetCount();
+        Label.resetLabelCount();
+
+        // define all parameters in the prologue env
+        for (Declaration param: params) {
+            prologue.addLocalBinding(param.getName(),
+                    Register.genTypedLocalRegister(param.getType().copy(), prologue.getLabel()));
+        }
+
+        // if non-void return, declare a container to hold the return value (helps with cleanup)
+        if (!(retType instanceof VoidType)) {
+            returnPhi = new PhiInstruction(null, null, new ArrayList<>());
+        }
+
+        //declare a label for returns to jump to
+        returnLabel = new Label("returnLabel");
+
+        BasicBlock endOfBody = body.toSSABlocks(func.getBody(), func);
+
+        // if the last statement does not end with a call to return, and a branch to the return statement
+        if (!endOfBody.endsWithJump()) {
+            UnconditionalBranchInstruction returnBridge = new UnconditionalBranchInstruction(Function.returnLabel);
+            endOfBody.addCode(returnBridge);
+        }
+
+        BasicBlock epilogue = new BasicBlock();
+        endOfBody.addChild(epilogue);
+        func.addToQueue(epilogue);
+
+        //add the return jump label
+        epilogue.setLabel(returnLabel);
+
+        if (retType instanceof VoidType) {
+            ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
+            epilogue.addCode(retVoid);
+        } else {
+            returnReg = Register.genTypedLocalRegister(retType.copy(), prologue.getLabel());
+            returnPhi.setResult(returnReg);
+            returnPhi.setBoundName(returnReg.getName());
+            ReturnInstruction ret = new ReturnInstruction(returnReg);
+            epilogue.addCode(returnPhi);
+            epilogue.addCode(ret);
+        }
+
+        removeRedundantPhis(func);
+        bubblePhisToTop(func);
+
+        return func;
+    }
+
+    public void removeRedundantPhis(IrFunction func) {
+        boolean check = true;
+
+        // clean up redundant phis
+        while(check) {
+            check = false;
+            for (BasicBlock block : func.getPreorderQueue()) {
+                Queue<Instruction> code = block.getContents();
+                int size = code.size();
+                for (int i = 0; i < size; i++) {
+                    Instruction inst = code.poll();
+                    if (!(inst instanceof PhiInstruction)) {
+                        code.add(inst);
+                        continue;
+                    }
+
+                    PhiInstruction phi = (PhiInstruction) inst;
+                    if (!(phi.isRedundant())) {
+                        code.add(inst);
+                        continue;
+                    }
+
+                    check = true;
+                    substAll(phi.getResult(), phi.getMembers().get(0), func);
+                }
+            }
+        }
+    }
+
+    public void substAll(Register phiResult, Source replacement, IrFunction func) {
+        for (BasicBlock block : func.getPreorderQueue()) {
+            Queue<Instruction> code = block.getContents();
+            for (int i = 0; i < code.size(); i++) {
+                Instruction inst = code.poll();
+                inst.substitute(phiResult.copy(), replacement.copy());
+                code.add(inst);
+            }
+        }
+    }
+
+    public void bubblePhisToTop(IrFunction func) {
+        for (BasicBlock block : func.getPreorderQueue()) {
+            Queue<Instruction> code = block.getContents();
+            Queue<Instruction> buffer = new ArrayDeque<>();
+            int size = code.size();
+            for (int i = 0; i < size; i++) {
+                Instruction inst = code.poll();
+                if (inst instanceof PhiInstruction) {
+                    code.add(inst);
+                } else {
+                    buffer.add(inst);
+                }
+            }
+            while(!buffer.isEmpty()) {
+                code.add(buffer.poll());
+            }
+        }
+    }
+
 }

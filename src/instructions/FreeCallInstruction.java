@@ -1,17 +1,22 @@
 package instructions;
 
 public class FreeCallInstruction implements Instruction {
-    private final Register result;
-    private final Source ptr;
+    private Source ptr;
 
-    public FreeCallInstruction(Register result, Source ptr) {
-        this.result = result;
+    public FreeCallInstruction(Source ptr) {
         this.ptr = ptr;
     }
 
     @Override
     public String toString() {
-        return String.format("%s = void @free(i8* %s)",
-                result.getValue(), ptr.getValue());
+        return String.format("call void @free(i8* %s)", ptr.getValue());
+    }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        if (ptr.equals(item)) {
+            replacement.setLabel(ptr.getLabel());
+            ptr = replacement;
+        }
     }
 }

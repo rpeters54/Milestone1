@@ -1,6 +1,8 @@
 package parser;
 
 import ast.BasicBlock;
+import ast.IrProgram;
+import ast.Program;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -41,26 +43,18 @@ public class MiniCompiler {
             error("Invalid Return Path");
         }
 
-        BasicBlock block = program.programCFG();
-        block.toLLFile("newOut.ll");
-
+        IrProgram prog = program.toCFG(Program.CFGType.SSA);
+        prog.toLLFile("binary.ll");
     }
 
 
     private static String _inputFile = null;
 
     private static void parseParameters(String[] args) {
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].charAt(0) == '-') {
-                System.err.println("unexpected option: " + args[i]);
-                exit(1);
-            } else if (_inputFile != null) {
-                System.err.println("too many files specified");
-                exit(1);
-            } else {
-                _inputFile = args[i];
-            }
+        if (args.length < 1) {
+            error("too few args");
         }
+        _inputFile = args[0];
     }
 
     private static void error(String msg) {

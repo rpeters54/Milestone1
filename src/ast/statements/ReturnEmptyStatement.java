@@ -32,10 +32,18 @@ public class ReturnEmptyStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
       UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
       block.addCode(jump);
-
       return block;
    }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      block.addCode(jump);
+      return block;
+   }
+
+
 }

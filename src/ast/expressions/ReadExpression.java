@@ -21,9 +21,18 @@ public class ReadExpression
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      Register dummy = new Register(new IntType());
-      Register readResult = new Register(new IntType());
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      return evalRead(block);
+   }
+
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      return evalRead(block);
+   }
+
+   private Source evalRead(BasicBlock block) {
+      Register dummy = Register.genTypedLocalRegister(new IntType(), block.getLabel());
+      Register readResult = Register.genTypedLocalRegister(new IntType(), block.getLabel());
       ReadCallInstruction read = new ReadCallInstruction(dummy, readResult);
       block.addCode(read);
       return readResult;

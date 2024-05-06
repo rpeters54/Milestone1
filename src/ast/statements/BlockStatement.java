@@ -10,6 +10,7 @@ import java.util.ArrayList;
 public class BlockStatement
    extends AbstractStatement
 {
+
    private final List<Statement> statements;
 
    public BlockStatement(int lineNum, List<Statement> statements)
@@ -43,10 +44,22 @@ public class BlockStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
       BasicBlock tmp = block;
       for (Statement stmt : statements) {
-         tmp = stmt.genBlock(tmp,env);
+         tmp = stmt.toStackBlocks(tmp, func);
+         if (tmp.endsWithJump()) {
+            return tmp;
+         }
+      }
+      return tmp;
+   }
+
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      BasicBlock tmp = block;
+      for (Statement stmt : statements) {
+         tmp = stmt.toSSABlocks(tmp, func);
          if (tmp.endsWithJump()) {
             return tmp;
          }

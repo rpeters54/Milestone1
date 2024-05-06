@@ -1,7 +1,7 @@
 package instructions;
 
 public class AllocaInstruction implements Instruction {
-    private final Register loc;
+    private Register loc;
 
     public AllocaInstruction(Register loc) {
         this.loc = loc;
@@ -15,5 +15,16 @@ public class AllocaInstruction implements Instruction {
         String deref = ptr.substring(0, ptr.length()-1);
         // <result> = alloca <ty>
         return String.format("%s = alloca %s", loc.getValue(), deref);
+    }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        if (item.equals(loc)) {
+            if (replacement instanceof Register) {
+                replacement.setLabel(loc.getLabel());
+                loc = (Register) replacement;
+            }
+            throw new RuntimeException("AllocaInstruction: Tried to replace necessary Register with Source");
+        }
     }
 }

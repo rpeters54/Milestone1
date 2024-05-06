@@ -5,9 +5,6 @@ import ast.expressions.Expression;
 import ast.types.*;
 import instructions.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class DeleteStatement
    extends AbstractStatement
 {
@@ -36,11 +33,24 @@ public class DeleteStatement
    }
 
    @Override
-   public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env) {
-      Source deleteItem = expression.genInst(block, env);
-      Register freeResult = new Register(new VoidType());
+   public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
+      Source deleteItem = expression.toStackInstructions(block, func);
+      return evalDelete(block, deleteItem);
+   }
 
-      FreeCallInstruction call = new FreeCallInstruction(freeResult, deleteItem);
+   @Override
+   public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
+      Source deleteItem = expression.toSSAInstructions(block, func);
+      return evalDelete(block, deleteItem);
+   }
+
+   public BasicBlock evalDelete(BasicBlock block, Source deleteItem) {
+      Register castResult = Register.genTypedLocalRegister(new NullType(), block.getLabel());
+
+      BitcastInstruction cast = new BitcastInstruction(castResult, deleteItem);
+      FreeCallInstruction call = new FreeCallInstruction(castResult);
+
+      block.addCode(cast);
       block.addCode(call);
 
       return block;

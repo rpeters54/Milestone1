@@ -31,10 +31,19 @@ public class NewArrayExpression
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
+        return evalNewArray(block);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        return evalNewArray(block);
+    }
+
+    private Source evalNewArray(BasicBlock block) {
         // define next regs
-        Register allocaResult = new Register(new PointerType(new ArrayAllocType(size)));
-        Register castResult = new Register(new ArrayType());
+        Register allocaResult = Register.genTypedLocalRegister(new PointerType(new ArrayAllocType(size)), block.getLabel());
+        Register castResult = Register.genTypedLocalRegister(new ArrayType(), block.getLabel());
 
         //define instruction strings
         AllocaInstruction alloca = new AllocaInstruction(allocaResult);

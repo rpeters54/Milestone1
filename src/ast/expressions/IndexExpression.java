@@ -39,13 +39,24 @@ public class IndexExpression
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
         // evaluate left and right of the dot
-        Source arrSource = left.genInst(block, env);
-        Source indexSource = index.genInst(block, env);
+        Source arrSource = left.toStackInstructions(block, func);
+        Source indexSource = index.toStackInstructions(block, func);
+        return evalIndex(block, arrSource, indexSource);
+    }
 
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        // evaluate left and right of the dot
+        Source arrSource = left.toSSAInstructions(block, func);
+        Source indexSource = index.toSSAInstructions(block, func);
+        return evalIndex(block, arrSource, indexSource);
+    }
+
+    private Source evalIndex(BasicBlock block, Source arrSource, Source indexSource) {
         // create a register that holds the pointer to the array item
-        Register gepResult = new Register(arrSource.getType().copy());
+        Register gepResult = Register.genMemberRegister(arrSource.getType().copy(), block.getLabel());
 
         // verify that the type of arrSource is pointer before casting
         if (!(arrSource.getType() instanceof PointerType)) {
@@ -54,7 +65,7 @@ public class IndexExpression
         Type baseType = ((PointerType) arrSource.getType()).getBaseType();
 
         // create a register that holds the result of the load
-        Register loadResult = new Register(baseType.copy());
+        Register loadResult = Register.genTypedLocalRegister(baseType.copy(), block.getLabel());
 
         // create both instructions and add them to the basic block
         GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrSource, indexSource);

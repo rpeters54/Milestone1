@@ -11,8 +11,6 @@ import instructions.Literal;
 import instructions.Register;
 import instructions.Source;
 
-import java.util.List;
-
 public class LvalueDot implements Lvalue {
     private final int lineNum;
     private final Expression left;
@@ -24,6 +22,9 @@ public class LvalueDot implements Lvalue {
         this.id = id;
     }
 
+    public String getId() {
+        return id;
+    }
 
     @Override
     public Type typecheck(TypeEnvironment env) throws TypeException {
@@ -51,11 +52,22 @@ public class LvalueDot implements Lvalue {
 
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
         //get struct metadata
-        Source structData = left.genInst(block, env);
+        Source structData = left.toStackInstructions(block, func);
+        return evalLvalDot(block, func, structData);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        //get struct metadata
+        Source structData = left.toSSAInstructions(block, func);
+        return evalLvalDot(block, func, structData);
+    }
+
+    public Source evalLvalDot(BasicBlock block, IrFunction func, Source structData) {
         StructType type = (StructType) structData.getType();
-        TypeDeclaration structDecl = env.lookupTypeDeclaration(type.getName());
+        TypeDeclaration structDecl = func.lookupTypeDeclaration(type.getName());
 
         //find the index of the member in the struct
         int memberIndex = structDecl.locateMember(id);
@@ -64,8 +76,8 @@ public class LvalueDot implements Lvalue {
         Declaration memberDecl = structDecl.getFields().get(memberIndex);
         Type memberType = memberDecl.getType();
 
-        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex));
-        Register gepResult = new Register(new PointerType(memberType.copy()));
+        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex), block.getLabel());
+        Register gepResult = Register.genMemberRegister(new PointerType(memberType.copy()), block.getLabel());
 
         GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);
         block.addCode(gep);

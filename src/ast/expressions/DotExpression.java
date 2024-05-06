@@ -44,13 +44,23 @@ public class DotExpression
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
         // retrieve type of item
-        Source structData = left.genInst(block, env);
+        Source structData = left.toStackInstructions(block, func);
+        return evalDot(block, func, structData);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        Source structData = left.toSSAInstructions(block, func);
+        return evalDot(block, func, structData);
+    }
+
+    private Source evalDot(BasicBlock block, IrFunction func, Source structData) {
         StructType type = (StructType) structData.getType();
 
         // find type declaration from type
-        TypeDeclaration structDecl = env.lookupTypeDeclaration(type.getName());
+        TypeDeclaration structDecl = func.lookupTypeDeclaration(type.getName());
 
         // find position of member in the struct
         int memberIndex = structDecl.locateMember(id);
@@ -60,11 +70,11 @@ public class DotExpression
         Type memberType = memberDecl.getType();
 
         // create a literal representing the index into the struct
-        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex));
+        Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex), block.getLabel());
 
         // get next 2 regs
-        Register gepResult = new Register(new PointerType(memberType.copy()));
-        Register loadResult = new Register(memberType.copy());
+        Register gepResult = Register.genMemberRegister(new PointerType(memberType.copy()), block.getLabel());
+        Register loadResult = Register.genTypedLocalRegister(memberType.copy(), block.getLabel());
 
         // format instruction strings
         GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);

@@ -4,7 +4,6 @@ import ast.*;
 import ast.expressions.Expression;
 import ast.types.ArrayType;
 import ast.types.IntType;
-import ast.types.PointerType;
 import ast.types.Type;
 import instructions.GetElemPtrInstruction;
 import instructions.Register;
@@ -19,6 +18,11 @@ public class LvalueIndex implements Lvalue {
         this.lineNum = lineNum;
         this.left = left;
         this.index = index;
+    }
+
+
+    public String getId() {
+        throw new IllegalArgumentException("LValueIndex getId(): Arr has no Id");
     }
 
     @Override
@@ -37,10 +41,21 @@ public class LvalueIndex implements Lvalue {
     }
 
     @Override
-    public Source genInst(BasicBlock block, LLVMEnvironment env) {
-        Source arrData = left.genInst(block, env);
-        Source indexData = index.genInst(block, env);
-        Register gepResult = new Register(arrData.getType().copy());
+    public Source toStackInstructions(BasicBlock block, IrFunction func) {
+        Source arrData = left.toStackInstructions(block, func);
+        Source indexData = index.toStackInstructions(block, func);
+        return evalLvalIndex(block, arrData, indexData);
+    }
+
+    @Override
+    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+        Source arrData = left.toSSAInstructions(block, func);
+        Source indexData = index.toSSAInstructions(block, func);
+        return evalLvalIndex(block, arrData, indexData);
+    }
+
+    private Source evalLvalIndex(BasicBlock block, Source arrData, Source indexData) {
+        Register gepResult = Register.genMemberRegister(arrData.getType().copy(), block.getLabel());
 
         GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrData, indexData);
         block.addCode(gep);

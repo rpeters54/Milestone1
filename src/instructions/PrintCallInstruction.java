@@ -1,8 +1,8 @@
 package instructions;
 
 public class PrintCallInstruction implements Instruction {
-    private final Register dummy;
-    private final Source printItem;
+    private Register dummy;
+    private Source printItem;
     private final Boolean newLine;
 
     public PrintCallInstruction(Register dummy, Source printItem, Boolean newLine) {
@@ -23,5 +23,19 @@ public class PrintCallInstruction implements Instruction {
                 "@printf(i8* getelementptr inbounds ([5 x i8], " +
                 "[5 x i8]* @.print, i32 0, i32 0), %s %s)", dummy.getValue(),
                 printItem.getTypeString(), printItem.getValue());
+    }
+    @Override
+    public void substitute(Source item, Source replacement) {
+        if (item.equals(dummy)) {
+            if (replacement instanceof Register) {
+                replacement.setLabel(dummy.getLabel());
+                dummy = (Register) replacement;
+            }
+            throw new RuntimeException("PrintCallInstruction: Tried to replace necessary Register with Source");
+        }
+        if (item.equals(printItem)) {
+            replacement.setLabel(printItem.getLabel());
+            printItem = replacement;
+        }
     }
 }

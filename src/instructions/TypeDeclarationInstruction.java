@@ -1,7 +1,6 @@
 package instructions;
 
 import ast.Declaration;
-import ast.LLVMEnvironment;
 import ast.TypeDeclaration;
 import ast.types.Type;
 
@@ -27,5 +26,10 @@ public class TypeDeclarationInstruction implements Instruction {
             typeList.delete(typeList.length()-2, typeList.length());
         }
         return String.format("%%struct.%s = type {%s}", name, typeList);
+    }
+
+    @Override
+    public void substitute(Source item, Source replacement) {
+        //do nothing
     }
 }

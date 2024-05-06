@@ -1,5 +1,6 @@
 package ast;
 
 public interface BlockHandler {
-    public BasicBlock genBlock(BasicBlock block, LLVMEnvironment env);
+    BasicBlock toStackBlocks(BasicBlock block, IrFunction func);
+    BasicBlock toSSABlocks(BasicBlock block, IrFunction func);
 }

@@ -18,8 +18,13 @@ public class NullExpression extends AbstractExpression {
    }
 
    @Override
-   public Source genInst(BasicBlock block, LLVMEnvironment env) {
-      return new Literal(new NullType(), "null");
+   public Source toStackInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new NullType(), "null", block.getLabel());
+   }
+
+   @Override
+   public Source toSSAInstructions(BasicBlock block, IrFunction func) {
+      return new Literal(new NullType(), "null", block.getLabel());
    }
 }
 
