@@ -1,5 +1,7 @@
 package ast.types;
 
+import java.util.Objects;
+
 public class ArrayAllocType implements Type {
 
     private final String size;
@@ -15,6 +17,11 @@ public class ArrayAllocType implements Type {
     @Override
     public boolean equals(Object obj) {
         return obj instanceof ArrayAllocType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(size, "ArrayAlloc");
     }
 
     @Override

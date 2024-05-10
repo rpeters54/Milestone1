@@ -16,7 +16,12 @@ public class DriverDeclarationInstruction implements Instruction {
 
 
     @Override
-    public void substitute(Source item, Source replacement) {
+    public void substituteSource(Source original, Source replacement) {
+        //do nothing
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
         //do nothing
     }
 }

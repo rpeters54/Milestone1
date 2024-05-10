@@ -117,7 +117,7 @@ public class WhileStatement
          Instruction inst = code.poll();
          if (inst instanceof PhiInstruction) {
             PhiInstruction phi = (PhiInstruction) inst;
-            List<Source> sources = inner.searchPredecessors(phi.getBoundName());
+            List<PhiTuple> sources = inner.searchPredecessors(phi.getBoundName());
             phi.setMembers(sources);
          }
          code.add(inst);

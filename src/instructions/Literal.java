@@ -40,6 +40,15 @@ public class Literal implements Source {
         return new Literal(type, value, label);
     }
 
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    @Override
+    public void setType(Type type) {
+        this.type = type;
+    }
+
     @Override
     public void setLabel(Label label) {
         this.label = label;
@@ -51,11 +60,12 @@ public class Literal implements Source {
         if (o == null || getClass() != o.getClass()) return false;
         Literal literal = (Literal) o;
         return Objects.equals(type, literal.type)
-                && Objects.equals(value, literal.value);
+                && Objects.equals(value, literal.value)
+                && Objects.equals(label, literal.label);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, value);
+        return Objects.hash(value, label, type);
     }
 }

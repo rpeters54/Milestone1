@@ -55,7 +55,55 @@ public class IrProgram {
     }
 
 
+    public void toDotFile(String filename) {
+        String name = "Header";
+        try {
+            FileWriter writer = new FileWriter(filename);
+            writer.write("digraph \"CFG\" {\n");
+            writer.write("\tnode [shape=record];\n");
+            writeLabels(writer, name, header);
+            for (IrFunction func : functions) {
+                BasicBlock head = func.getPreorderQueue().peek();
+                writeGraph(writer, name, head.getName());
+                for (BasicBlock block : func.getPreorderQueue()) {
+                    writeLabels(writer, block.getName(), new ArrayList<>(block.getContents()));
+                    for (BasicBlock child : block.getChildren()) {
+                        writeGraph(writer, block.getName(), child.getName());
+                    }
+                }
+            }
+            writer.write("}");
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    public static void writeLabels(FileWriter writer, String name, List<Instruction> instructionList) throws IOException {
+        writer.write(String.format("\t%s [label=\"", name));
+        StringBuilder sb = new StringBuilder();
+        for (Instruction code : instructionList) {
+            char[] str = code.toString().toCharArray();
+            for (int i = 0; i < str.length; i++) {
+                switch (str[i]) {
+                    case '{' -> str[i] = '[';
+                    case '}' -> str[i] = ']';
+                    case '\"' -> str[i] = '\'';
+                }
+            }
+            sb.append(String.valueOf(str));
+            sb.append("\\n ");
+        }
+        if (sb.length() > 0) {
+            sb.delete(sb.length()-3, sb.length());
+        }
+        writer.write(sb.toString());
+        writer.write("\"];\n");
+    }
+
+    public void writeGraph(FileWriter writer, String parent, String child) throws IOException {
+        writer.write(String.format("\t%s -> %s\n", parent, child));
+    }
 
     public void toLLFile(String filename) {
         try {

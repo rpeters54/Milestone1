@@ -1,14 +1,17 @@
 package ast;
 
+import ast.types.NullType;
+import ast.types.Type;
 import instructions.*;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class BasicBlock {
     private Label label;
-    private final ArrayDeque<Instruction> contents;
+    private final Deque<Instruction> contents;
     private final List<BasicBlock> children;
     private final List<BasicBlock> parents;
 
@@ -17,9 +20,7 @@ public class BasicBlock {
     private boolean unsealed;                           //boolean for if block is unsealed
 
     // printing stuff
-    private final List<String> visitorList;
     private final int sernum;
-    private boolean written;
 
     private static int instanceCount = 0;
 
@@ -33,8 +34,6 @@ public class BasicBlock {
         this.unsealed = false;
 
         // printing stuff
-        this.visitorList = new ArrayList<>();
-        this.written = false;
         this.sernum = instanceCount++;
     }
 
@@ -54,7 +53,7 @@ public class BasicBlock {
         unsealed = true;
     }
 
-    public Queue<Instruction> getContents() {
+    public Deque<Instruction> getContents() {
         return contents;
     }
 
@@ -95,6 +94,13 @@ public class BasicBlock {
         child.parents.add(this);
     }
 
+    public void removeChildren() {
+        for (BasicBlock child : children) {
+            child.parents.remove(this);
+        }
+        children.clear();
+    }
+
     public boolean endsWithJump() {
         if (contents.size() == 0) {
             return false;
@@ -102,15 +108,6 @@ public class BasicBlock {
         return contents.getLast() instanceof JumpInstruction;
     }
 
-    // copies local bindings from another block
-    public void copyBindings(BasicBlock other) {
-        Map<String, Source> otherBindings = other.getLocalBindings();
-        for (String key : otherBindings.keySet()) {
-            Source item = otherBindings.get(key).copy();
-            item.setLabel(this.label);
-            this.localBindings.put(key, item);
-        }
-    }
 
     //combine bindings from prior blocks to populate next blocks
     public void reconcileBranch(BasicBlock left, BasicBlock right) {
@@ -119,11 +116,11 @@ public class BasicBlock {
         Set<String> keySet = new HashSet<>(rightBindings.keySet());
         keySet.addAll(leftBindings.keySet());
         for (String id : keySet) {
-            List<Source> sourceList = this.searchPredecessors(id);
+            List<PhiTuple> sourceList = this.searchPredecessors(id);
             if (sourceList.size() == 1) {
-                this.addLocalBinding(id, sourceList.get(0));
+                this.addLocalBinding(id, sourceList.get(0).getSource().copy());
             } else {
-                Register phiReg = Register.genTypedLocalRegister(sourceList.get(0).getType(), this.label);
+                Register phiReg = Register.genTypedLocalRegister(sourceList.get(0).getType().copy(), this.label);
                 PhiInstruction phi = new PhiInstruction(id, phiReg, sourceList);
                 this.addCode(phi);
                 this.addLocalBinding(id, phiReg);
@@ -131,10 +128,10 @@ public class BasicBlock {
         }
     }
 
-    public List<Source> searchPredecessors(String id) {
+    public List<PhiTuple> searchPredecessors(String id) {
         Map<Integer, Boolean> visitedMap = new HashMap<>();
         Map<Integer, List<Source>> occurrenceMap = new HashMap<>();
-        List<Source> allOccurrences = new ArrayList<>();
+        List<PhiTuple> allValues = new ArrayList<>();
 
 
         Source item = localBindings.get(id);
@@ -148,14 +145,17 @@ public class BasicBlock {
         for (BasicBlock parent : parents) {
             List<Source> parentOccurrences = parent.searchPredHelper(id, occurrenceMap, visitedMap);
             if (parentOccurrences == null) {
-                throw new IllegalArgumentException("BasicBlock: Value must be defined at some point");
+                throw new IllegalArgumentException("SearchPredecessor: Value must be defined at some point");
             }
-            for (Source source : parentOccurrences) {
-                source.setLabel(parent.getLabel());
-            }
-            allOccurrences.addAll(parentOccurrences);
+//            if (parentOccurrences.size() != 1) {
+//                throw new RuntimeException("SearchPredecessor: Parent block should only provide one value");
+//            }
+            List<PhiTuple> tuples = parentOccurrences.stream()
+                    .map(member -> new PhiTuple(member, parent.getLabel()))
+                    .collect(Collectors.toList());
+            allValues.addAll(tuples);
         }
-        return allOccurrences;
+        return allValues;
     }
 
     public List<Source> searchPredHelper(String id, Map<Integer, List<Source>> occurrenceMap, Map<Integer, Boolean> visitedMap) {
@@ -191,67 +191,5 @@ public class BasicBlock {
         return allOccurrences;
     }
 
-
-    public void toDotFile(String filename) {
-        resetTraversal();
-        try {
-            FileWriter writer = new FileWriter(filename);
-            writer.write("digraph \"CFG\" {\n");
-            writer.write("\tnode [shape=record];\n");
-            writeLabels(writer);
-            writeGraph(writer);
-            writer.write("}");
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void writeLabels(FileWriter writer) throws IOException {
-        written = true;
-        writer.write(String.format("\t%s [label=\"", getName()));
-        StringBuilder sb = new StringBuilder();
-        for (Instruction code : contents) {
-            char[] str = code.toString().toCharArray();
-            for (int i = 0; i < str.length; i++) {
-                switch (str[i]) {
-                    case '{' -> str[i] = '[';
-                    case '}' -> str[i] = ']';
-                    case '\"' -> str[i] = '\'';
-                }
-            }
-            sb.append(String.valueOf(str));
-            sb.append("\\n ");
-        }
-        if (sb.length() > 0) {
-            sb.delete(sb.length()-3, sb.length());
-        }
-        writer.write(sb.toString());
-        writer.write("\"];\n");
-        for (BasicBlock child : children) {
-            if (!child.written) {
-                child.writeLabels(writer);
-            }
-        }
-    }
-
-    public void writeGraph(FileWriter writer) throws IOException {
-        for (BasicBlock child : children) {
-            if (!child.visitorList.contains(getName())) {
-                writer.write(String.format("\t%s -> %s\n", getName(), child.getName()));
-                child.writeGraph(writer);
-                child.visitorList.add(getName());
-            }
-        }
-    }
-
-    private void resetTraversal() {
-        written = false;
-        for (BasicBlock child : children) {
-            if (child.written) {
-                child.resetTraversal();
-            }
-        }
-    }
 
 }

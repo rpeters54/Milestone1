@@ -18,13 +18,19 @@ public class AllocaInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(loc)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(loc)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(loc.getLabel());
+//                replacement.setLabel(loc.getLabel());
                 loc = (Register) replacement;
             }
             throw new RuntimeException("AllocaInstruction: Tried to replace necessary Register with Source");
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (loc.getLabel().equals(original))
+            loc.setLabel(replacement);
     }
 }

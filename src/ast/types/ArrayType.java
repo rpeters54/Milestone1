@@ -1,10 +1,18 @@
 package ast.types;
 
+import java.util.Objects;
+
 public class ArrayType implements Type {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof ArrayType;
+        return obj instanceof ArrayType
+                || obj instanceof NullType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash("Array");
     }
 
     @Override

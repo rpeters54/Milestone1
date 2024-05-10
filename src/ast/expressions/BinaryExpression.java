@@ -2,10 +2,7 @@ package ast.expressions;
 
 import ast.*;
 import ast.types.*;
-import instructions.BinaryInstruction;
-import instructions.ComparatorInstruction;
-import instructions.Register;
-import instructions.Source;
+import instructions.*;
 
 public class BinaryExpression
    extends AbstractExpression

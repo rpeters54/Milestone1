@@ -86,7 +86,7 @@ public class UnaryExpression
                 return unaryResult;
             }
             case NOT -> {
-                Literal one = new Literal(new BoolType(), "1", block.getLabel());
+                Literal one = new Literal(new BoolType(), "true", block.getLabel());
                 unaryResult.setType(new BoolType());
                 BinaryInstruction binop = new BinaryInstruction(unaryResult,
                         BinaryExpression.Operator.XOR, one, operandData);

@@ -1,5 +1,6 @@
 package instructions;
 
 public interface Instruction {
-    void substitute(Source item, Source replacement);
+    void substituteSource(Source original, Source replacement);
+    void substituteLabel(Label original, Label replacement);
 }

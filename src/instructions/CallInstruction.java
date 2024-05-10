@@ -51,18 +51,29 @@ public class CallInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(result)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(result)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(result.getLabel());
+//                replacement.setLabel(result.getLabel());
                 result = (Register) replacement;
             }
             throw new RuntimeException("CallInstruction: Tried to replace necessary Register with Source");
         }
         for (int i = 0; i < arguments.size(); i++) {
-            if (arguments.get(i).equals(item)) {
-                replacement.setLabel(arguments.get(i).getLabel());
+            if (arguments.get(i).equals(original)) {
+//                replacement.setLabel(arguments.get(i).getLabel());
                 arguments.set(i, replacement);
+            }
+        }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (result != null && result.getLabel().equals(original))
+            result.setLabel(replacement);
+        for (Source arg : arguments) {
+            if (arg.getLabel().equals(original)) {
+                arg.setLabel(replacement);
             }
         }
     }

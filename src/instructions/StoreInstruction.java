@@ -18,17 +18,25 @@ public class StoreInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(loc)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(loc)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(loc.getLabel());
+//                replacement.setLabel(loc.getLabel());
                 loc = (Register) replacement;
             }
             throw new RuntimeException("StoreInstruction: Tried to replace necessary Register with Source");
         }
-        if (item.equals(value)) {
-            replacement.setLabel(value.getLabel());
+        if (original.equals(value)) {
+//            replacement.setLabel(value.getLabel());
             value = replacement;
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (loc.getLabel().equals(original))
+            loc.setLabel(replacement);
+        if (value.getLabel().equals(original))
+            value.setLabel(replacement);
     }
 }

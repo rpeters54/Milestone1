@@ -1,6 +1,7 @@
 package ast.expressions;
 
 import ast.*;
+import ast.types.NullType;
 import ast.types.PointerType;
 import ast.types.Type;
 import instructions.LoadInstruction;
@@ -66,9 +67,10 @@ public class IdentifierExpression
 
 
       // if not a global, search the predecessors for all definitions
-      List<Source> bindings = block.searchPredecessors(id);
+      List<PhiTuple> bindings = block.searchPredecessors(id);
       // make the phi
-      Register phiResult = Register.genTypedLocalRegister(bindings.get(0).getType(), block.getLabel());
+
+      Register phiResult = Register.genTypedLocalRegister(bindings.get(0).getType().copy(), block.getLabel());
       PhiInstruction phi = new PhiInstruction(id, phiResult, bindings);
       block.addLocalBinding(id, phiResult);
       block.addCode(phi);

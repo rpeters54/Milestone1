@@ -14,6 +14,8 @@ public class TypeMap {
             return "void";
         } else if (type instanceof NullType) {
             return "i8*";
+        } else if (type instanceof GEPIntType) {
+            return "i32";
         } else if (type instanceof PointerType){
             PointerType p = (PointerType) type;
             return ttos(p.getBaseType())+"*";
@@ -25,7 +27,7 @@ public class TypeMap {
             return String.format("%%struct.%s*", s.getName());
         } else if (type instanceof ArrayAllocType) {
             ArrayAllocType arr = (ArrayAllocType) type;
-            return String.format("[%s * i64]", arr.getSize());
+            return String.format("[%s x i64]", arr.getSize());
         } else {
             throw new IllegalArgumentException("Non-Existent Type");
         }

@@ -6,10 +6,7 @@ import ast.expressions.Expression;
 import ast.types.NullType;
 import ast.types.StructType;
 import ast.types.Type;
-import instructions.PhiInstruction;
-import instructions.Register;
-import instructions.Source;
-import instructions.StoreInstruction;
+import instructions.*;
 
 public class AssignmentStatement
    extends AbstractStatement {
@@ -27,11 +24,12 @@ public class AssignmentStatement
       Type left = target.typecheck(env);
       Type right = source.typecheck(env);
 
-      if (left.equals(right)) {
-         return left;
+      if (left instanceof NullType) {
+         throw new TypeException(String.format("AssignmentStatement: Can't assign to " +
+                 "a null value, line: %d", getLineNum()));
       }
 
-      if (left instanceof StructType && right instanceof NullType) {
+      if (left.equals(right)) {
          return left;
       }
 
@@ -68,6 +66,7 @@ public class AssignmentStatement
       // store array and struct members
       if (storageLocation instanceof Register) {
          Register storageRegister = (Register) storageLocation;
+         repairNull(storageRegister.getType(), valueToStore);
          StoreInstruction store = new StoreInstruction(storageRegister, valueToStore);
          block.addCode(store);
          return block;
@@ -76,6 +75,7 @@ public class AssignmentStatement
       // check whether the target is a local or a global
       if (func.isBound(target.getId())) {
          // if it's a local add it to the block bindings
+         repairNull(func.getTypeOfDeclaration(target.getId()), valueToStore);
          block.addLocalBinding(target.getId(), valueToStore);
          return block;
       }
@@ -83,6 +83,7 @@ public class AssignmentStatement
       Register globalLookup = func.lookupGlobal(target.getId());
       // if it's a global store it like usual
       if (globalLookup != null) {
+         repairNull(globalLookup.getType(), valueToStore);
          StoreInstruction store = new StoreInstruction(globalLookup, valueToStore);
          block.addCode(store);
          return block;
@@ -91,5 +92,10 @@ public class AssignmentStatement
       throw new IllegalArgumentException("Assign.toSSABlocks(): failed to find bound value");
    }
 
+   void repairNull(Type type, Source maybeNull) {
+      if (maybeNull instanceof Literal && maybeNull.getType() instanceof NullType) {
+         maybeNull.setType(type.copy());
+      }
+   }
 
 }

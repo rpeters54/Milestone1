@@ -18,12 +18,12 @@ public class NewExpression
 
    @Override
    public Type typecheck(TypeEnvironment env) throws TypeException {
-      Type type = env.lookup(id);
-      if (!(type instanceof StructType)) {
+      TypeDeclaration decl = env.getTypeDeclaration(id);
+      if (decl == null) {
          throw new TypeException(String.format("NewExpression: Can't " +
-                 "Alloc Non-Struct, line: %d", getLineNum()));
+                 "Alloc Undefined Type, line: %d", getLineNum()));
       }
-      return type;
+      return new StructType(-1, decl.getName());
    }
 
    @Override

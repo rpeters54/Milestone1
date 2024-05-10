@@ -16,17 +16,25 @@ public class MallocCallInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(result)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(result)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(result.getLabel());
+//                replacement.setLabel(result.getLabel());
                 result = (Register) replacement;
             }
             throw new RuntimeException("MallocCallInstruction: Tried to replace necessary Register with Source");
         }
-        if (item.equals(size)) {
-            replacement.setLabel(size.getLabel());
+        if (original.equals(size)) {
+//            replacement.setLabel(size.getLabel());
             size = replacement;
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (result.getLabel().equals(original))
+            result.setLabel(replacement);
+        if (size.getLabel().equals(original))
+            size.setLabel(replacement);
     }
 }

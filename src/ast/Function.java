@@ -83,6 +83,7 @@ public class Function implements Typed {
     public static Label returnLabel;
     public static Register returnReg;
     public static PhiInstruction returnPhi;
+    public static BasicBlock returnBlock;
 
 
     public IrFunction toStackCFG(IrProgram prog) {
@@ -113,6 +114,7 @@ public class Function implements Typed {
 
         //declare a label for returns to jump to
         returnLabel = new Label("returnLabel");
+
 
         for (Declaration decl: allDecls) {
             Register localVar = Register.genTypedLocalRegister(new PointerType(decl.getType().copy()), prologue.getLabel());
@@ -151,7 +153,7 @@ public class Function implements Typed {
         } else {
             Register loadResult = Register.genTypedLocalRegister(retType.copy(), epilogue.getLabel());
             LoadInstruction load = new LoadInstruction(loadResult, returnReg);
-            ReturnInstruction ret = new ReturnInstruction(loadResult);
+            ReturnInstruction ret = new ReturnInstruction(retType,loadResult);
 
             epilogue.addCode(load);
             epilogue.addCode(ret);
@@ -181,8 +183,10 @@ public class Function implements Typed {
             returnPhi = new PhiInstruction(null, null, new ArrayList<>());
         }
 
-        //declare a label for returns to jump to
+        //declare a block and label for returns to jump to
+        returnBlock = new BasicBlock();
         returnLabel = new Label("returnLabel");
+        returnBlock.setLabel(returnLabel);
 
         BasicBlock endOfBody = body.toSSABlocks(func.getBody(), func);
 
@@ -192,67 +196,206 @@ public class Function implements Typed {
             endOfBody.addCode(returnBridge);
         }
 
-        BasicBlock epilogue = new BasicBlock();
-        endOfBody.addChild(epilogue);
-        func.addToQueue(epilogue);
+        if (!endOfBody.endsWithJump())
+            endOfBody.addChild(returnBlock);
+        func.addToQueue(returnBlock);
 
-        //add the return jump label
-        epilogue.setLabel(returnLabel);
 
         if (retType instanceof VoidType) {
             ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
-            epilogue.addCode(retVoid);
+            returnBlock.addCode(retVoid);
         } else {
             returnReg = Register.genTypedLocalRegister(retType.copy(), prologue.getLabel());
             returnPhi.setResult(returnReg);
             returnPhi.setBoundName(returnReg.getName());
-            ReturnInstruction ret = new ReturnInstruction(returnReg);
-            epilogue.addCode(returnPhi);
-            epilogue.addCode(ret);
+            ReturnInstruction ret = new ReturnInstruction(retType, returnReg);
+            returnBlock.addCode(returnPhi);
+            returnBlock.addCode(ret);
         }
 
-        removeRedundantPhis(func);
+        bubblePhisToTop(func);
+
+        boolean check = true;
+        int count = 0;
+        while (check) {
+            check = removeRedundantPhis(func);
+            check |= constantPropAndFold(func);
+            check |= mergeBlocks(func);
+            //check |= attachBlocks(func);
+            count++;
+        }
+
         bubblePhisToTop(func);
 
         return func;
     }
 
-    public void removeRedundantPhis(IrFunction func) {
-        boolean check = true;
+    public boolean mergeBlocks(IrFunction func) {
+        boolean check = false;
 
-        // clean up redundant phis
-        while(check) {
-            check = false;
-            for (BasicBlock block : func.getPreorderQueue()) {
-                Queue<Instruction> code = block.getContents();
-                int size = code.size();
-                for (int i = 0; i < size; i++) {
-                    Instruction inst = code.poll();
-                    if (!(inst instanceof PhiInstruction)) {
-                        code.add(inst);
-                        continue;
-                    }
+        Deque<BasicBlock> killQueue = new ArrayDeque<>();
+        List<Label> killedLabels = new ArrayList<>();
+        List<Label> newLabels = new ArrayList<>();
+        Deque<BasicBlock> blockQueue = func.getPreorderQueue();
 
-                    PhiInstruction phi = (PhiInstruction) inst;
-                    if (!(phi.isRedundant())) {
-                        code.add(inst);
-                        continue;
-                    }
+        for (BasicBlock block : blockQueue) {
+            if (killQueue.contains(block))
+                continue;
+            if (block.getChildren().size() != 1)
+                continue;
+            BasicBlock child = block.getChildren().get(0);
+            if (child.getParents().size() != 1)
+                continue;
 
-                    check = true;
-                    substAll(phi.getResult(), phi.getMembers().get(0), func);
+            check = true;
+
+            // merge the parent and child
+            // migrate other's children to the basic block
+            List<BasicBlock> grandchildren = child.getChildren();
+            block.removeChildren();
+            for (BasicBlock grandchild : grandchildren) {
+                block.addChild(grandchild);
+            }
+            child.removeChildren();
+
+            // remove the branch instruction from this to other
+            block.getContents().removeLast();
+
+            block.getContents().addAll(child.getContents());
+            block.getLocalBindings().putAll(child.getLocalBindings());
+
+            // mark the child for death
+            killQueue.add(child);
+
+            // add the labels so they can be reconciled later
+            killedLabels.add(child.getLabel());
+            newLabels.add(block.getLabel());
+        }
+
+        // kill all unnecessary blocks
+        blockQueue.removeAll(killQueue);
+
+        for (BasicBlock block : blockQueue) {
+            for (Instruction inst : block.getContents()) {
+                for (int i = 0; i < killedLabels.size(); i++) {
+                    inst.substituteLabel(killedLabels.get(i),
+                            newLabels.get(i));
                 }
             }
         }
+
+        return check;
     }
 
-    public void substAll(Register phiResult, Source replacement, IrFunction func) {
+
+    public boolean attachBlocks(IrFunction func) {
+        boolean check = false;
+
+        Deque<BasicBlock> killQueue = new ArrayDeque<>();
+        List<Label> killedLabels = new ArrayList<>();
+        List<Label> newLabels = new ArrayList<>();
+        Deque<BasicBlock> blockQueue = func.getPreorderQueue();
+
+        for (BasicBlock block : blockQueue) {
+            // if already dead, ignore
+            if (killQueue.contains(block))
+                continue;
+
+            // if conditions not met, ignore
+            if (block.getChildren().size() != 1
+            || block.getContents().size() > 1)
+                continue;
+
+            // if this block defines anything, ignore it
+            if (block.getLocalBindings().size() != 0)
+                continue;
+
+            check = true;
+
+            // get child and detach it from block
+            BasicBlock child = block.getChildren().get(0);
+            block.getChildren().remove(child);
+            child.getParents().remove(block);
+
+            // for each parent
+            for (BasicBlock parent : block.getParents()) {
+
+                // hoist branch up to each parent
+                parent.getChildren().remove(block);
+                parent.addChild(child);
+                JumpInstruction jmp = (JumpInstruction) parent.getContents().peekLast();
+                assert jmp != null;
+                jmp.substituteLabel(block.getLabel(), child.getLabel());
+            }
+            // mark the block for death
+            killQueue.add(block);
+        }
+
+        // kill all unnecessary blocks
+        blockQueue.removeAll(killQueue);
+
+        return check;
+    }
+
+    public boolean constantPropAndFold(IrFunction func) {
+        boolean check = false;
         for (BasicBlock block : func.getPreorderQueue()) {
             Queue<Instruction> code = block.getContents();
-            for (int i = 0; i < code.size(); i++) {
+            int size = code.size();
+            for (int i = 0; i < size; i++) {
                 Instruction inst = code.poll();
-                inst.substitute(phiResult.copy(), replacement.copy());
-                code.add(inst);
+                if (!(inst instanceof FoldableInstruction)) {
+                    code.add(inst);
+                    continue;
+                }
+                FoldableInstruction fold = (FoldableInstruction) inst;
+                Literal constant = fold.fold();
+                if (constant == null) {
+                    code.add(inst);
+                    continue;
+                }
+                check = true;
+                substAll(fold.getResult(), constant, func);
+            }
+        }
+        return check;
+    }
+
+    public boolean removeRedundantPhis(IrFunction func) {
+        boolean check = false;
+        for (BasicBlock block : func.getPreorderQueue()) {
+            Queue<Instruction> code = block.getContents();
+            int size = code.size();
+            for (int i = 0; i < size; i++) {
+                Instruction inst = code.poll();
+                if (!(inst instanceof PhiInstruction)) {
+                    code.add(inst);
+                    continue;
+                }
+                PhiInstruction phi = (PhiInstruction) inst;
+                if (!(phi.isRedundant())) {
+                    code.add(inst);
+                    continue;
+                }
+                check = true;
+                substAll(phi.getResult(), phi.getMembers().get(0).getSource(), func);
+            }
+        }
+        return check;
+    }
+
+    public void substAll(Source original, Source replacement, IrFunction func) {
+        for (BasicBlock block : func.getPreorderQueue()) {
+            Queue<Instruction> code = block.getContents();
+            for (Instruction inst : code) {
+                inst.substituteSource(original.copy(), replacement.copy());
+                Map<String, Source> bindings = block.getLocalBindings();
+                for (Map.Entry<String, Source> entry : bindings.entrySet()) {
+                    if (Objects.equals(original, entry.getValue())) {
+                        bindings.put(entry.getKey(), replacement);
+                    }
+                }
+
             }
         }
     }

@@ -1,14 +1,18 @@
 package ast.types;
 
+import java.util.Objects;
+
 public class NullType implements Type {
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof NullType;
+        return obj instanceof NullType
+                || obj instanceof StructType
+                || obj instanceof ArrayType;
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode();
+        return Objects.hash("Null");
     }
 
     @Override

@@ -42,6 +42,7 @@ public class ReturnEmptyStatement
    public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
       UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
       block.addCode(jump);
+      block.addChild(Function.returnBlock);
       return block;
    }
 

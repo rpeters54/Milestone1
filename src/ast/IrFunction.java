@@ -14,7 +14,7 @@ public class IrFunction {
     private final Map<String, Register> localBindings;   //local symbol table
     private final BasicBlock body;
 
-    private final Queue<BasicBlock> preorderQueue;
+    private final Deque<BasicBlock> preorderQueue;
 
 
     public IrFunction(IrProgram parent, Function func) {
@@ -53,7 +53,17 @@ public class IrFunction {
         return body;
     }
 
-    public Queue<BasicBlock> getPreorderQueue() {
+    public Type getTypeOfDeclaration(String id) {
+        for (Declaration decl : definition.concatDecls()) {
+            if (decl.getName().equals(id)) {
+                return decl.getType();
+            }
+        }
+        throw new RuntimeException("getTypeofDeclaration: shouldn't be here");
+    }
+
+
+    public Deque<BasicBlock> getPreorderQueue() {
         return preorderQueue;
     }
 
@@ -64,7 +74,6 @@ public class IrFunction {
     public Function lookupFunction(String name) {
         return parent.getFunction().get(name);
     }
-
 
     public void addLocalBinding(String name, Register reg) {
         localBindings.put(name, reg);
@@ -129,6 +138,5 @@ public class IrFunction {
             e.printStackTrace();
         }
     }
-
 
 }

@@ -8,10 +8,13 @@ import java.util.Objects;
 
 public class FunctionType implements Type {
 
-    private ArrayList<Type> inputs;
-    private Type output;
+    private final String name;
+    private final ArrayList<Type> inputs;
+    private final Type output;
 
     public FunctionType(Function func) {
+        name = func.getName();
+
         inputs = new ArrayList<>(func.getParams().size());
 
         for (Declaration param : func.getParams()) {
@@ -34,12 +37,13 @@ public class FunctionType implements Type {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         FunctionType that = (FunctionType) o;
-        return Objects.equals(inputs, that.inputs) && Objects.equals(output, that.output);
+        return Objects.equals(inputs, that.inputs) && Objects.equals(output, that.output)
+                && Objects.equals(name, that.name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(inputs, output);
+        return Objects.hash(name, inputs, output);
     }
 
     @Override

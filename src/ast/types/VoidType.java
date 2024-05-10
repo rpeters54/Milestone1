@@ -1,9 +1,16 @@
 package ast.types;
 
+import java.util.Objects;
+
 public class VoidType implements Type {
     @Override
     public boolean equals(Object obj) {
         return obj instanceof VoidType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash("Void");
     }
 
     @Override

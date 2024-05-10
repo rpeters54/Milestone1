@@ -1,7 +1,7 @@
 package instructions;
 
 public class UnconditionalBranchInstruction implements JumpInstruction {
-    private final Label stub;
+    private Label stub;
 
     public UnconditionalBranchInstruction(Label stub) {
         this.stub = stub;
@@ -13,7 +13,13 @@ public class UnconditionalBranchInstruction implements JumpInstruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
+    public void substituteSource(Source original, Source replacement) {
         //do nothing
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (stub.equals(original))
+            stub = replacement;
     }
 }

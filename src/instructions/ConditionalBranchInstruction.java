@@ -2,8 +2,8 @@ package instructions;
 
 public class ConditionalBranchInstruction implements JumpInstruction {
     private Source cond;
-    private final Label trueStub;
-    private final Label falseStub;
+    private Label trueStub;
+    private Label falseStub;
 
     public ConditionalBranchInstruction(Source cond, Label trueStub, Label falseStub) {
         this.cond = cond;
@@ -18,10 +18,19 @@ public class ConditionalBranchInstruction implements JumpInstruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (cond.equals(item)) {
-            replacement.setLabel(cond.getLabel());
+    public void substituteSource(Source original, Source replacement) {
+        if (cond.equals(original)) {
+//            replacement.setLabel(cond.getLabel());
             cond = replacement;
         }
     }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (trueStub.equals(original))
+            trueStub = replacement;
+        if (falseStub.equals(original))
+            falseStub = replacement;
+    }
+
 }

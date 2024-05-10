@@ -2,16 +2,15 @@ package ast.types;
 
 import java.util.Objects;
 
-public class BoolType implements Type {
-
+public class GEPIntType implements Type {
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof BoolType;
+        return obj instanceof GEPIntType;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash("Bool");
+        return Objects.hashCode("GEP");
     }
 
     @Override

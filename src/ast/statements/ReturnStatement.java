@@ -59,10 +59,11 @@ public class ReturnStatement
    @Override
    public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
       Source retVal = expression.toSSAInstructions(block, func);
-      Function.returnPhi.addMember(retVal);
+      Function.returnPhi.addMember(new PhiTuple(retVal, block.getLabel()));
 
       UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
       block.addCode(jump);
+      block.addChild(Function.returnBlock);
 
       return block;
    }

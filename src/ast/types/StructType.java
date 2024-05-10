@@ -19,6 +19,9 @@ public class StructType
    }
 
    public boolean equals(Object obj) {
+      if (obj instanceof NullType) {
+         return true;
+      }
       if (!(obj instanceof StructType)) {
          return false;
       }

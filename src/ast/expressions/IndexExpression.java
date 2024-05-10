@@ -1,14 +1,8 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.ArrayType;
-import ast.types.IntType;
-import ast.types.PointerType;
-import ast.types.Type;
-import instructions.GetElemPtrInstruction;
-import instructions.LoadInstruction;
-import instructions.Register;
-import instructions.Source;
+import ast.types.*;
+import instructions.*;
 
 public class IndexExpression
     extends AbstractExpression
@@ -59,15 +53,14 @@ public class IndexExpression
         Register gepResult = Register.genMemberRegister(arrSource.getType().copy(), block.getLabel());
 
         // verify that the type of arrSource is pointer before casting
-        if (!(arrSource.getType() instanceof PointerType)) {
-            throw new IllegalArgumentException("Can't deref a Non-Pointer");
+        if (!(arrSource.getType() instanceof ArrayType)) {
+            throw new RuntimeException("Can't deref a Non-Pointer");
         }
-        Type baseType = ((PointerType) arrSource.getType()).getBaseType();
 
         // create a register that holds the result of the load
-        Register loadResult = Register.genTypedLocalRegister(baseType.copy(), block.getLabel());
+        Register loadResult = Register.genTypedLocalRegister(new IntType(), block.getLabel());
 
-        // create both instructions and add them to the basic block
+        // create all instructions and add them to the basic block
         GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrSource, indexSource);
         LoadInstruction load = new LoadInstruction(loadResult, gepResult);
 

@@ -25,17 +25,25 @@ public class PrintCallInstruction implements Instruction {
                 printItem.getTypeString(), printItem.getValue());
     }
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(dummy)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(dummy)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(dummy.getLabel());
+//                replacement.setLabel(dummy.getLabel());
                 dummy = (Register) replacement;
             }
             throw new RuntimeException("PrintCallInstruction: Tried to replace necessary Register with Source");
         }
-        if (item.equals(printItem)) {
-            replacement.setLabel(printItem.getLabel());
+        if (original.equals(printItem)) {
+//            replacement.setLabel(printItem.getLabel());
             printItem = replacement;
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (dummy.getLabel().equals(original))
+            dummy.setLabel(replacement);
+        if (printItem.getLabel().equals(original))
+            printItem.setLabel(replacement);
     }
 }

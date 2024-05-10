@@ -1,12 +1,15 @@
 package instructions;
 
+import ast.types.ArrayType;
+import ast.types.StructType;
+
 public class GetElemPtrInstruction implements Instruction {
-    private Register lVal;
+    private Register result;
     private Source obj;
     private Source index;
 
-    public GetElemPtrInstruction(Register lVal, Source item, Source index) {
-        this.lVal = lVal;
+    public GetElemPtrInstruction(Register result, Source item, Source index) {
+        this.result = result;
         this.obj = item;
         this.index = index;
     }
@@ -14,26 +17,42 @@ public class GetElemPtrInstruction implements Instruction {
     @Override
     public String toString() {
         String deref = TypeMap.deref(obj.getTypeString());
-
-        return String.format("%s = getelementptr inbounds %s, %s %s, i32 0, i32 %s",
-                lVal.getValue(), deref, obj.getTypeString(), obj.getValue(), index.getValue());
+        if (obj.getType() instanceof StructType) {
+            return String.format("%s = getelementptr inbounds %s, %s %s, i32 0, i32 %s",
+                    result.getValue(), deref, obj.getTypeString(), obj.getValue(), index.getValue());
+        }
+        if (obj.getType() instanceof ArrayType) {
+            return String.format("%s = getelementptr inbounds %s, %s %s, i64 %s",
+                    result.getValue(), deref, obj.getTypeString(), obj.getValue(), index.getValue());
+        }
+        return "invalid";
     }
 
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(lVal)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(result)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(lVal.getLabel());
-                lVal = (Register) replacement;
+//                replacement.setLabel(result.getLabel());
+                result = (Register) replacement;
             }
             throw new RuntimeException("GetElemPtrInstruction: Tried to replace necessary Register with Source");
         }
-        if (item.equals(obj)) {
-            replacement.setLabel(obj.getLabel());
+        if (original.equals(obj)) {
+//            replacement.setLabel(obj.getLabel());
             obj = replacement;
         }
-        if (item.equals(index)) {
-            replacement.setLabel(index.getLabel());
+        if (original.equals(index)) {
+//            replacement.setLabel(index.getLabel());
             index = replacement;
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (result.getLabel().equals(original))
+            result.setLabel(replacement);
+        if (obj.getLabel().equals(original))
+            obj.setLabel(replacement);
+        if (index.getLabel().equals(original))
+            index.setLabel(replacement);
     }
 }

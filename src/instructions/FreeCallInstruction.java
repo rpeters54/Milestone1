@@ -13,10 +13,16 @@ public class FreeCallInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (ptr.equals(item)) {
-            replacement.setLabel(ptr.getLabel());
+    public void substituteSource(Source original, Source replacement) {
+        if (ptr.equals(original)) {
+//            replacement.setLabel(ptr.getLabel());
             ptr = replacement;
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (ptr.getLabel().equals(original))
+            ptr.setLabel(replacement);
     }
 }

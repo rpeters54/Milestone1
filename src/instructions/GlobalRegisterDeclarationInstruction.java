@@ -26,13 +26,19 @@ public class GlobalRegisterDeclarationInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(self)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(self)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(self.getLabel());
+//                replacement.setLabel(self.getLabel());
                 self = (Register) replacement;
             }
             throw new RuntimeException("GlobalRegisterDeclarationInstruction: Tried to replace necessary Register with Source");
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (self.getLabel().equals(original))
+            self.setLabel(replacement);
     }
 }

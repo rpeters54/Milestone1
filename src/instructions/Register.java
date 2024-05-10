@@ -29,7 +29,7 @@ public class Register implements Source {
     public static Register genLocalRegister(Label label) {
         return new Register(
                 new NullType(),
-                Integer.toString(regCount++),
+                "r"+regCount++,
                 label,
                 false,
                 false
@@ -39,7 +39,7 @@ public class Register implements Source {
     public static Register genTypedLocalRegister(Type type, Label label) {
         return new Register(
                 type,
-                Integer.toString(regCount++),
+                "r"+regCount++,
                 label,
                 false,
                 false
@@ -50,7 +50,7 @@ public class Register implements Source {
         return new Register(
                 type,
                 name,
-                null,
+                new Label("global"),
                 true,
                 false
         );
@@ -59,7 +59,7 @@ public class Register implements Source {
     public static Register genMemberRegister(Type type, Label label) {
         return new Register(
                 type,
-                Integer.toString(regCount++),
+                "r"+regCount++,
                 label,
                 false,
                 true
@@ -88,7 +88,7 @@ public class Register implements Source {
         if (isGlobal) {
             return "@"+value;
         } else {
-            return "%r"+value;
+            return "%"+value;
         }
     }
 
@@ -118,12 +118,13 @@ public class Register implements Source {
         Register register = (Register) o;
         return isGlobal == register.isGlobal
                 && isMember == register.isMember
+                && Objects.equals(label, register.label)
                 && Objects.equals(type, register.type)
                 && Objects.equals(value, register.value);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, value, isGlobal, isMember);
+        return Objects.hash(value, type, label, isGlobal, isMember);
     }
 }

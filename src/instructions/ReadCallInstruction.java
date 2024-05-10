@@ -18,20 +18,28 @@ public class ReadCallInstruction implements Instruction {
     }
 
     @Override
-    public void substitute(Source item, Source replacement) {
-        if (item.equals(dummy)) {
+    public void substituteSource(Source original, Source replacement) {
+        if (original.equals(dummy)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(dummy.getLabel());
+//                replacement.setLabel(dummy.getLabel());
                 dummy = (Register) replacement;
             }
             throw new RuntimeException("ReadCallInstruction: Tried to replace necessary Register with Source");
         }
-        if (item.equals(result)) {
+        if (original.equals(result)) {
             if (replacement instanceof Register) {
-                replacement.setLabel(result.getLabel());
+//                replacement.setLabel(result.getLabel());
                 result = (Register) replacement;
             }
             throw new RuntimeException("ReadCallInstruction: Tried to replace necessary Register with Source");
         }
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        if (dummy.getLabel().equals(original))
+            dummy.setLabel(replacement);
+        if (result.getLabel().equals(original))
+            result.setLabel(replacement);
     }
 }
