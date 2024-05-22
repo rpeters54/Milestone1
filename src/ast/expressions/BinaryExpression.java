@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.BinaryLLVMInstruction;
+import instructions.llvm.ComparatorLLVMInstruction;
 
 public class BinaryExpression
    extends AbstractExpression
@@ -105,43 +107,50 @@ public class BinaryExpression
    public Source toStackInstructions(BasicBlock block, IrFunction func) {
       Source leftSource = left.toStackInstructions(block, func);
       Source rightSource = right.toStackInstructions(block, func);
-      return evalBinop(block, leftSource, rightSource);
+      return evalBinop(block, func, leftSource, rightSource);
    }
 
    @Override
    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
       Source leftSource = left.toSSAInstructions(block, func);
       Source rightSource = right.toSSAInstructions(block, func);
-      return evalBinop(block, leftSource, rightSource);
+      return evalBinop(block, func, leftSource, rightSource);
    }
 
-   private Source evalBinop(BasicBlock block, Source leftSource, Source rightSource) {
+   private Source evalBinop(BasicBlock block, IrFunction func, Source leftSource, Source rightSource) {
       Register result = Register.genLocalRegister(block.getLabel());
 
       // print instruction output based on the operator
       switch (operator) {
          case TIMES, DIVIDE, PLUS, MINUS -> {
             // format binary expression string
-            BinaryInstruction binop = new BinaryInstruction(result, operator, leftSource, rightSource);
+            BinaryLLVMInstruction binop = new BinaryLLVMInstruction(result, operator, leftSource, rightSource);
+
             // add it to the basic block
             block.addCode(binop);
             result.setType(new IntType());
+
             return result;
          }
          case LT, LE, GT, GE, EQ, NE -> {
             // format binary expression string
-            ComparatorInstruction cmp = new ComparatorInstruction(result, operator, leftSource, rightSource);
+            ComparatorLLVMInstruction cmp = new ComparatorLLVMInstruction(result, operator, leftSource, rightSource);
             // add it to the basic block
+
             block.addCode(cmp);
             result.setType(new BoolType());
+
+            Object obj = func.getCriticalInstruction(result);
             return result;
          }
          case AND, OR -> {
             // format binary expression string
-            BinaryInstruction binop = new BinaryInstruction(result, operator, leftSource, rightSource);
+            BinaryLLVMInstruction binop = new BinaryLLVMInstruction(result, operator, leftSource, rightSource);
+
             // add it to the basic block
             block.addCode(binop);
             result.setType(new BoolType());
+
             return result;
          }
          default -> throw new IllegalArgumentException("Binary Expression: Failed to Resolve Binop");

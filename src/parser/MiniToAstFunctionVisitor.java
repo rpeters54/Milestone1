@@ -1,5 +1,6 @@
 package parser;
 
+import ast.declarations.Declaration;
 import ast.statements.BlockStatement;
 import ast.types.VoidType;
 

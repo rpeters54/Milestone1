@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.AllocaLLVMInstruction;
+import instructions.llvm.BitcastLLVMInstruction;
 
 public class NewArrayExpression
     extends AbstractExpression
@@ -32,22 +34,22 @@ public class NewArrayExpression
 
     @Override
     public Source toStackInstructions(BasicBlock block, IrFunction func) {
-        return evalNewArray(block);
+        return evalNewArray(block, func);
     }
 
     @Override
     public Source toSSAInstructions(BasicBlock block, IrFunction func) {
-        return evalNewArray(block);
+        return evalNewArray(block, func);
     }
 
-    private Source evalNewArray(BasicBlock block) {
+    private Source evalNewArray(BasicBlock block, IrFunction func) {
         // define next regs
         Register allocaResult = Register.genTypedLocalRegister(new PointerType(new ArrayAllocType(size)), block.getLabel());
         Register castResult = Register.genTypedLocalRegister(new ArrayType(), block.getLabel());
 
         //define instruction strings
-        AllocaInstruction alloca = new AllocaInstruction(allocaResult);
-        BitcastInstruction bitcast = new BitcastInstruction(castResult, allocaResult);
+        AllocaLLVMInstruction alloca = new AllocaLLVMInstruction(allocaResult);
+        BitcastLLVMInstruction bitcast = new BitcastLLVMInstruction(castResult, allocaResult);
 
         //add instruction strings to basic block
         block.addCode(alloca);

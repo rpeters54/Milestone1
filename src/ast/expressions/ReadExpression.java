@@ -3,7 +3,9 @@ package ast.expressions;
 import ast.*;
 import ast.types.IntType;
 import ast.types.Type;
-import instructions.ReadCallInstruction;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
+import instructions.llvm.ReadCallLLVMInstruction;
 import instructions.Register;
 import instructions.Source;
 
@@ -22,19 +24,20 @@ public class ReadExpression
 
    @Override
    public Source toStackInstructions(BasicBlock block, IrFunction func) {
-      return evalRead(block);
+      return evalRead(block, func);
    }
 
    @Override
    public Source toSSAInstructions(BasicBlock block, IrFunction func) {
-      return evalRead(block);
+      return evalRead(block, func);
    }
 
-   private Source evalRead(BasicBlock block) {
+   private Source evalRead(BasicBlock block, IrFunction func) {
       Register dummy = Register.genTypedLocalRegister(new IntType(), block.getLabel());
       Register readResult = Register.genTypedLocalRegister(new IntType(), block.getLabel());
-      ReadCallInstruction read = new ReadCallInstruction(dummy, readResult);
+      ReadCallLLVMInstruction read = new ReadCallLLVMInstruction(dummy, readResult);
       block.addCode(read);
+
       return readResult;
    }
 }

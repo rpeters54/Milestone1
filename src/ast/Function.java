@@ -1,14 +1,12 @@
 package ast;
 
+import ast.declarations.Declaration;
 import ast.statements.Statement;
-import ast.types.FunctionType;
-import ast.types.PointerType;
-import ast.types.Type;
-import ast.types.VoidType;
+import ast.types.*;
 import instructions.*;
+import instructions.llvm.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Function implements Typed {
     private final int lineNum;
@@ -82,7 +80,7 @@ public class Function implements Typed {
 
     public static Label returnLabel;
     public static Register returnReg;
-    public static PhiInstruction returnPhi;
+    public static PhiLLVMInstruction returnPhi;
     public static BasicBlock returnBlock;
 
 
@@ -108,17 +106,19 @@ public class Function implements Typed {
         // if non-void return, declare a container to hold the return value (helps with cleanup)
         if (!(retType instanceof VoidType)) {
             returnReg = Register.genTypedLocalRegister(new PointerType(retType.copy()), prologue.getLabel());
-            AllocaInstruction returnAlloca = new AllocaInstruction(returnReg);
+            AllocaLLVMInstruction returnAlloca = new AllocaLLVMInstruction(returnReg);
             prologue.addCode(returnAlloca);
         }
 
-        //declare a label for returns to jump to
+        //declare a block and label for returns to jump to
+        returnBlock = new BasicBlock();
         returnLabel = new Label("returnLabel");
+        returnBlock.setLabel(returnLabel);
 
 
         for (Declaration decl: allDecls) {
             Register localVar = Register.genTypedLocalRegister(new PointerType(decl.getType().copy()), prologue.getLabel());
-            AllocaInstruction alloca = new AllocaInstruction(localVar);
+            AllocaLLVMInstruction alloca = new AllocaLLVMInstruction(localVar);
             prologue.addCode(alloca);
             func.addLocalBinding(decl.getName(), localVar);
         }
@@ -127,36 +127,33 @@ public class Function implements Typed {
             Declaration param = params.get(i);
             Register implicitReg = implicitRegs.get(i);
             Register localVar = func.lookupReg(param.getName());
-            StoreInstruction store = new StoreInstruction(localVar, implicitReg);
+            StoreLLVMInstruction store = new StoreLLVMInstruction(implicitReg, localVar);
             prologue.addCode(store);
         }
 
 
         BasicBlock endOfBody = body.toStackBlocks(func.getBody(), func);
 
+
         // if the last statement does not end with a call to return, and a branch to the return statement
         if (!endOfBody.endsWithJump()) {
-            UnconditionalBranchInstruction returnBridge = new UnconditionalBranchInstruction(Function.returnLabel);
+            UnconditionalBranchLLVMInstruction returnBridge = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
             endOfBody.addCode(returnBridge);
+            endOfBody.addChild(returnBlock);
         }
 
-        BasicBlock epilogue = new BasicBlock();
-        endOfBody.addChild(epilogue);
-        func.addToQueue(epilogue);
-
-        //add the return jump label
-        epilogue.setLabel(returnLabel);
+        func.addToQueue(returnBlock);
 
         if (retType instanceof VoidType) {
-            ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
-            epilogue.addCode(retVoid);
+            ReturnVoidLLVMInstruction retVoid = new ReturnVoidLLVMInstruction();
+            returnBlock.addCode(retVoid);
         } else {
-            Register loadResult = Register.genTypedLocalRegister(retType.copy(), epilogue.getLabel());
-            LoadInstruction load = new LoadInstruction(loadResult, returnReg);
-            ReturnInstruction ret = new ReturnInstruction(retType,loadResult);
+            Register loadResult = Register.genTypedLocalRegister(retType.copy(), returnBlock.getLabel());
+            LoadLLVMInstruction load = new LoadLLVMInstruction(loadResult, returnReg);
+            ReturnLLVMInstruction ret = new ReturnLLVMInstruction(retType,loadResult);
 
-            epilogue.addCode(load);
-            epilogue.addCode(ret);
+            returnBlock.addCode(load);
+            returnBlock.addCode(ret);
         }
 
         return func;
@@ -180,7 +177,7 @@ public class Function implements Typed {
 
         // if non-void return, declare a container to hold the return value (helps with cleanup)
         if (!(retType instanceof VoidType)) {
-            returnPhi = new PhiInstruction(null, null, new ArrayList<>());
+            returnPhi = new PhiLLVMInstruction(null, null, new ArrayList<>());
         }
 
         //declare a block and label for returns to jump to
@@ -190,233 +187,38 @@ public class Function implements Typed {
 
         BasicBlock endOfBody = body.toSSABlocks(func.getBody(), func);
 
-        // if the last statement does not end with a call to return, and a branch to the return statement
+        // if the last statement does not end with a call to return, add a branch to the return statement
         if (!endOfBody.endsWithJump()) {
-            UnconditionalBranchInstruction returnBridge = new UnconditionalBranchInstruction(Function.returnLabel);
+            UnconditionalBranchLLVMInstruction returnBridge = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
             endOfBody.addCode(returnBridge);
+            endOfBody.addChild(returnBlock);
         }
 
-        if (!endOfBody.endsWithJump())
-            endOfBody.addChild(returnBlock);
         func.addToQueue(returnBlock);
 
 
         if (retType instanceof VoidType) {
-            ReturnVoidInstruction retVoid = new ReturnVoidInstruction();
+            ReturnVoidLLVMInstruction retVoid = new ReturnVoidLLVMInstruction();
             returnBlock.addCode(retVoid);
         } else {
             returnReg = Register.genTypedLocalRegister(retType.copy(), prologue.getLabel());
             returnPhi.setResult(returnReg);
             returnPhi.setBoundName(returnReg.getName());
-            ReturnInstruction ret = new ReturnInstruction(retType, returnReg);
+            ReturnLLVMInstruction ret = new ReturnLLVMInstruction(retType, returnReg);
+            // add return phi register -> instruction binding
             returnBlock.addCode(returnPhi);
             returnBlock.addCode(ret);
         }
 
-        bubblePhisToTop(func);
 
-        boolean check = true;
-        int count = 0;
-        while (check) {
-            check = removeRedundantPhis(func);
-            check |= constantPropAndFold(func);
-            check |= mergeBlocks(func);
-            //check |= attachBlocks(func);
-            count++;
-        }
+        // do basic transformations on the completed program
+        // (aggressive dead code elim / constant prop and fold)
+        func.initTransformStructures();
+        func.basicTransformations();
 
-        bubblePhisToTop(func);
+
 
         return func;
-    }
-
-    public boolean mergeBlocks(IrFunction func) {
-        boolean check = false;
-
-        Deque<BasicBlock> killQueue = new ArrayDeque<>();
-        List<Label> killedLabels = new ArrayList<>();
-        List<Label> newLabels = new ArrayList<>();
-        Deque<BasicBlock> blockQueue = func.getPreorderQueue();
-
-        for (BasicBlock block : blockQueue) {
-            if (killQueue.contains(block))
-                continue;
-            if (block.getChildren().size() != 1)
-                continue;
-            BasicBlock child = block.getChildren().get(0);
-            if (child.getParents().size() != 1)
-                continue;
-
-            check = true;
-
-            // merge the parent and child
-            // migrate other's children to the basic block
-            List<BasicBlock> grandchildren = child.getChildren();
-            block.removeChildren();
-            for (BasicBlock grandchild : grandchildren) {
-                block.addChild(grandchild);
-            }
-            child.removeChildren();
-
-            // remove the branch instruction from this to other
-            block.getContents().removeLast();
-
-            block.getContents().addAll(child.getContents());
-            block.getLocalBindings().putAll(child.getLocalBindings());
-
-            // mark the child for death
-            killQueue.add(child);
-
-            // add the labels so they can be reconciled later
-            killedLabels.add(child.getLabel());
-            newLabels.add(block.getLabel());
-        }
-
-        // kill all unnecessary blocks
-        blockQueue.removeAll(killQueue);
-
-        for (BasicBlock block : blockQueue) {
-            for (Instruction inst : block.getContents()) {
-                for (int i = 0; i < killedLabels.size(); i++) {
-                    inst.substituteLabel(killedLabels.get(i),
-                            newLabels.get(i));
-                }
-            }
-        }
-
-        return check;
-    }
-
-
-    public boolean attachBlocks(IrFunction func) {
-        boolean check = false;
-
-        Deque<BasicBlock> killQueue = new ArrayDeque<>();
-        List<Label> killedLabels = new ArrayList<>();
-        List<Label> newLabels = new ArrayList<>();
-        Deque<BasicBlock> blockQueue = func.getPreorderQueue();
-
-        for (BasicBlock block : blockQueue) {
-            // if already dead, ignore
-            if (killQueue.contains(block))
-                continue;
-
-            // if conditions not met, ignore
-            if (block.getChildren().size() != 1
-            || block.getContents().size() > 1)
-                continue;
-
-            // if this block defines anything, ignore it
-            if (block.getLocalBindings().size() != 0)
-                continue;
-
-            check = true;
-
-            // get child and detach it from block
-            BasicBlock child = block.getChildren().get(0);
-            block.getChildren().remove(child);
-            child.getParents().remove(block);
-
-            // for each parent
-            for (BasicBlock parent : block.getParents()) {
-
-                // hoist branch up to each parent
-                parent.getChildren().remove(block);
-                parent.addChild(child);
-                JumpInstruction jmp = (JumpInstruction) parent.getContents().peekLast();
-                assert jmp != null;
-                jmp.substituteLabel(block.getLabel(), child.getLabel());
-            }
-            // mark the block for death
-            killQueue.add(block);
-        }
-
-        // kill all unnecessary blocks
-        blockQueue.removeAll(killQueue);
-
-        return check;
-    }
-
-    public boolean constantPropAndFold(IrFunction func) {
-        boolean check = false;
-        for (BasicBlock block : func.getPreorderQueue()) {
-            Queue<Instruction> code = block.getContents();
-            int size = code.size();
-            for (int i = 0; i < size; i++) {
-                Instruction inst = code.poll();
-                if (!(inst instanceof FoldableInstruction)) {
-                    code.add(inst);
-                    continue;
-                }
-                FoldableInstruction fold = (FoldableInstruction) inst;
-                Literal constant = fold.fold();
-                if (constant == null) {
-                    code.add(inst);
-                    continue;
-                }
-                check = true;
-                substAll(fold.getResult(), constant, func);
-            }
-        }
-        return check;
-    }
-
-    public boolean removeRedundantPhis(IrFunction func) {
-        boolean check = false;
-        for (BasicBlock block : func.getPreorderQueue()) {
-            Queue<Instruction> code = block.getContents();
-            int size = code.size();
-            for (int i = 0; i < size; i++) {
-                Instruction inst = code.poll();
-                if (!(inst instanceof PhiInstruction)) {
-                    code.add(inst);
-                    continue;
-                }
-                PhiInstruction phi = (PhiInstruction) inst;
-                if (!(phi.isRedundant())) {
-                    code.add(inst);
-                    continue;
-                }
-                check = true;
-                substAll(phi.getResult(), phi.getMembers().get(0).getSource(), func);
-            }
-        }
-        return check;
-    }
-
-    public void substAll(Source original, Source replacement, IrFunction func) {
-        for (BasicBlock block : func.getPreorderQueue()) {
-            Queue<Instruction> code = block.getContents();
-            for (Instruction inst : code) {
-                inst.substituteSource(original.copy(), replacement.copy());
-                Map<String, Source> bindings = block.getLocalBindings();
-                for (Map.Entry<String, Source> entry : bindings.entrySet()) {
-                    if (Objects.equals(original, entry.getValue())) {
-                        bindings.put(entry.getKey(), replacement);
-                    }
-                }
-
-            }
-        }
-    }
-
-    public void bubblePhisToTop(IrFunction func) {
-        for (BasicBlock block : func.getPreorderQueue()) {
-            Queue<Instruction> code = block.getContents();
-            Queue<Instruction> buffer = new ArrayDeque<>();
-            int size = code.size();
-            for (int i = 0; i < size; i++) {
-                Instruction inst = code.poll();
-                if (inst instanceof PhiInstruction) {
-                    code.add(inst);
-                } else {
-                    buffer.add(inst);
-                }
-            }
-            while(!buffer.isEmpty()) {
-                code.add(buffer.poll());
-            }
-        }
     }
 
 }

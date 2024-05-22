@@ -4,10 +4,12 @@ import ast.*;
 import ast.expressions.Expression;
 import ast.types.FunctionType;
 import ast.types.Type;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 import instructions.Register;
 import instructions.Source;
-import instructions.StoreInstruction;
-import instructions.UnconditionalBranchInstruction;
+import instructions.llvm.StoreLLVMInstruction;
+import instructions.llvm.UnconditionalBranchLLVMInstruction;
 
 public class ReturnStatement
    extends AbstractStatement
@@ -47,11 +49,12 @@ public class ReturnStatement
       Source val = expression.toStackInstructions(block, func);
       Register retVal = Function.returnReg;
 
-      StoreInstruction store = new StoreInstruction(retVal, val);
-      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      StoreLLVMInstruction store = new StoreLLVMInstruction(val, retVal);
+      UnconditionalBranchLLVMInstruction jump = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
 
       block.addCode(store);
       block.addCode(jump);
+      block.addChild(Function.returnBlock);
 
       return block;
    }
@@ -61,7 +64,7 @@ public class ReturnStatement
       Source retVal = expression.toSSAInstructions(block, func);
       Function.returnPhi.addMember(new PhiTuple(retVal, block.getLabel()));
 
-      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      UnconditionalBranchLLVMInstruction jump = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
       block.addCode(jump);
       block.addChild(Function.returnBlock);
 

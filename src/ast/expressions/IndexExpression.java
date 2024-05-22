@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.GetElemPtrLLVMInstruction;
+import instructions.llvm.LoadLLVMInstruction;
 
 public class IndexExpression
     extends AbstractExpression
@@ -61,8 +63,8 @@ public class IndexExpression
         Register loadResult = Register.genTypedLocalRegister(new IntType(), block.getLabel());
 
         // create all instructions and add them to the basic block
-        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrSource, indexSource);
-        LoadInstruction load = new LoadInstruction(loadResult, gepResult);
+        GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, arrSource, indexSource);
+        LoadLLVMInstruction load = new LoadLLVMInstruction(loadResult, gepResult);
 
         block.addCode(gep);
         block.addCode(load);

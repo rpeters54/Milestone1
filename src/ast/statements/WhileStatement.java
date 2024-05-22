@@ -2,11 +2,11 @@ package ast.statements;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.expressions.IntegerExpression;
-import ast.types.BoolType;
-import ast.types.Type;
-import ast.types.VoidType;
+import ast.types.*;
 import instructions.*;
+import instructions.llvm.ConditionalBranchLLVMInstruction;
+import instructions.Instruction;
+import instructions.llvm.PhiLLVMInstruction;
 
 import java.util.*;
 
@@ -66,7 +66,7 @@ public class WhileStatement
       func.addToQueue(outer);
 
       // add the conditional branch to the inner and outer blocks to the parent
-      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, innerStub, outerStub);
+      ConditionalBranchLLVMInstruction cond = new ConditionalBranchLLVMInstruction(guardData, innerStub, outerStub);
       block.addCode(cond);
       block.addChild(outer);
 
@@ -74,7 +74,7 @@ public class WhileStatement
       // dont put a branch to the outer at the end
       if (!lastInner.endsWithJump()) {
          Source innerGuard = guard.toStackInstructions(lastInner, func);
-         ConditionalBranchInstruction innerCond = new ConditionalBranchInstruction(innerGuard, innerStub, outerStub);
+         ConditionalBranchLLVMInstruction innerCond = new ConditionalBranchLLVMInstruction(innerGuard, innerStub, outerStub);
          lastInner.addCode(innerCond);
          lastInner.addChild(outer);
       }
@@ -92,7 +92,6 @@ public class WhileStatement
       // generate labels and blocks
       Label innerStub = new Label();
       BasicBlock inner = new BasicBlock();
-      inner.unseal();
       func.addToQueue(inner);
 
       // add the body and after blocks as children of the parent
@@ -100,7 +99,6 @@ public class WhileStatement
 
       // add label to the inner block
       inner.setLabel(innerStub);
-
 
       // generate temporary phis since inner is unsealed
       generateTemporaryPhis(inner, block);
@@ -115,14 +113,13 @@ public class WhileStatement
       int size = code.size();
       for (int i = 0; i < size; i++) {
          Instruction inst = code.poll();
-         if (inst instanceof PhiInstruction) {
-            PhiInstruction phi = (PhiInstruction) inst;
+         if (inst instanceof PhiLLVMInstruction) {
+            PhiLLVMInstruction phi = (PhiLLVMInstruction) inst;
             List<PhiTuple> sources = inner.searchPredecessors(phi.getBoundName());
             phi.setMembers(sources);
          }
          code.add(inst);
       }
-      inner.seal();
 
 
       // add the outermost block
@@ -133,7 +130,7 @@ public class WhileStatement
       func.addToQueue(outer);
 
       // add the conditional branch to the inner and outer blocks to the parent
-      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, innerStub, outerStub);
+      ConditionalBranchLLVMInstruction cond = new ConditionalBranchLLVMInstruction(guardData, innerStub, outerStub);
       block.addCode(cond);
       block.addChild(outer);
 
@@ -142,7 +139,7 @@ public class WhileStatement
       // only populate outer with the parent's bindings
       if (!lastInner.endsWithJump()) {
          Source innerGuard = guard.toSSAInstructions(lastInner, func);
-         ConditionalBranchInstruction innerCond = new ConditionalBranchInstruction(innerGuard, innerStub, outerStub);
+         ConditionalBranchLLVMInstruction innerCond = new ConditionalBranchLLVMInstruction(innerGuard, innerStub, outerStub);
          lastInner.addCode(innerCond);
          lastInner.addChild(outer);
          outer.reconcileBranch(block, inner);
@@ -157,7 +154,7 @@ public class WhileStatement
       for (String key : parentBindings.keySet()) {
          Source item = parentBindings.get(key);
          Register phiReg = Register.genTypedLocalRegister(item.getType(), inner.getLabel());
-         PhiInstruction phi = new PhiInstruction(key, phiReg, null);
+         PhiLLVMInstruction phi = new PhiLLVMInstruction(key, phiReg);
          inner.addLocalBinding(key, phiReg);
          inner.addCode(phi);
       }

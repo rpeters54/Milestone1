@@ -3,6 +3,7 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.CallLLVMInstruction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,13 +77,14 @@ public class InvocationExpression
 
 
       if (funcType.getOutput() instanceof VoidType) {
-         CallInstruction call = new CallInstruction(null, calledFunction, argList);
+         CallLLVMInstruction call = new CallLLVMInstruction(calledFunction, argList);
          block.addCode(call);
          return new Literal(new NullType(), "null", block.getLabel());
       } else {
          // allocate a reg to hold the result
          Register callResult = Register.genTypedLocalRegister(funcType.getOutput().copy(), block.getLabel());
-         CallInstruction call = new CallInstruction(callResult, calledFunction, argList);
+         CallLLVMInstruction call = new CallLLVMInstruction(callResult, calledFunction, argList);
+
          block.addCode(call);
          return callResult;
       }

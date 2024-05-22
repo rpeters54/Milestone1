@@ -2,10 +2,8 @@ package ast.lvalues;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.types.ArrayType;
-import ast.types.IntType;
-import ast.types.Type;
-import instructions.GetElemPtrInstruction;
+import ast.types.*;
+import instructions.llvm.GetElemPtrLLVMInstruction;
 import instructions.Register;
 import instructions.Source;
 
@@ -44,20 +42,20 @@ public class LvalueIndex implements Lvalue {
     public Source toStackInstructions(BasicBlock block, IrFunction func) {
         Source arrData = left.toStackInstructions(block, func);
         Source indexData = index.toStackInstructions(block, func);
-        return evalLvalIndex(block, arrData, indexData);
+        return evalLvalIndex(block, func, arrData, indexData);
     }
 
     @Override
     public Source toSSAInstructions(BasicBlock block, IrFunction func) {
         Source arrData = left.toSSAInstructions(block, func);
         Source indexData = index.toSSAInstructions(block, func);
-        return evalLvalIndex(block, arrData, indexData);
+        return evalLvalIndex(block, func, arrData, indexData);
     }
 
-    private Source evalLvalIndex(BasicBlock block, Source arrData, Source indexData) {
+    private Source evalLvalIndex(BasicBlock block, IrFunction func, Source arrData, Source indexData) {
         Register gepResult = Register.genMemberRegister(arrData.getType().copy(), block.getLabel());
 
-        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, arrData, indexData);
+        GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, arrData, indexData);
         block.addCode(gep);
 
         return gepResult;

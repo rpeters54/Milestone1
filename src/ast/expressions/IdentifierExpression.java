@@ -1,15 +1,15 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.NullType;
 import ast.types.PointerType;
 import ast.types.Type;
-import instructions.LoadInstruction;
-import instructions.PhiInstruction;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
+import instructions.llvm.LoadLLVMInstruction;
+import instructions.llvm.PhiLLVMInstruction;
 import instructions.Register;
 import instructions.Source;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class IdentifierExpression
@@ -36,7 +36,7 @@ public class IdentifierExpression
       PointerType ptr = (PointerType) idReg.getType();
       loadResult.setType(ptr.getBaseType().copy());
 
-      LoadInstruction load = new LoadInstruction(loadResult, idReg);
+      LoadLLVMInstruction load = new LoadLLVMInstruction(loadResult, idReg);
       block.addCode(load);
 
       return loadResult;
@@ -59,7 +59,7 @@ public class IdentifierExpression
          PointerType ptr = (PointerType) idReg.getType();
          loadResult.setType(ptr.getBaseType().copy());
 
-         LoadInstruction load = new LoadInstruction(loadResult, idReg);
+         LoadLLVMInstruction load = new LoadLLVMInstruction(loadResult, idReg);
          block.addCode(load);
 
          return loadResult;
@@ -71,12 +71,12 @@ public class IdentifierExpression
       // make the phi
 
       Register phiResult = Register.genTypedLocalRegister(bindings.get(0).getType().copy(), block.getLabel());
-      PhiInstruction phi = new PhiInstruction(id, phiResult, bindings);
+      PhiLLVMInstruction phi = new PhiLLVMInstruction(id, phiResult, bindings);
       block.addLocalBinding(id, phiResult);
       block.addCode(phi);
+
       return phiResult;
 
-      //throw new RuntimeException("Shouldn't be here");
    }
 
 }

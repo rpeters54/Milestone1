@@ -3,6 +3,8 @@ package ast.expressions;
 import ast.*;
 import ast.types.BoolType;
 import ast.types.Type;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 import instructions.Literal;
 import instructions.Source;
 

@@ -2,7 +2,8 @@ package ast.lvalues;
 
 import ast.*;
 import ast.types.Type;
-import instructions.Register;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 import instructions.Source;
 
 public class LvalueId implements Lvalue {

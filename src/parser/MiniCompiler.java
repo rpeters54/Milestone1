@@ -2,6 +2,7 @@ package parser;
 
 import ast.IrProgram;
 import ast.Program;
+import ast.types.TypeException;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -35,7 +36,7 @@ public class MiniCompiler {
         // type check
         try {
             program.validTypes();
-        } catch (ast.TypeException e) {
+        } catch (TypeException e) {
             e.printStackTrace();
             exit(1);
         }

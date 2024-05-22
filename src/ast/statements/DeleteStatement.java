@@ -4,6 +4,8 @@ import ast.*;
 import ast.expressions.Expression;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.BitcastLLVMInstruction;
+import instructions.llvm.FreeCallLLVMInstruction;
 
 public class DeleteStatement
    extends AbstractStatement
@@ -35,20 +37,20 @@ public class DeleteStatement
    @Override
    public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
       Source deleteItem = expression.toStackInstructions(block, func);
-      return evalDelete(block, deleteItem);
+      return evalDelete(block, func, deleteItem);
    }
 
    @Override
    public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
       Source deleteItem = expression.toSSAInstructions(block, func);
-      return evalDelete(block, deleteItem);
+      return evalDelete(block, func, deleteItem);
    }
 
-   public BasicBlock evalDelete(BasicBlock block, Source deleteItem) {
+   public BasicBlock evalDelete(BasicBlock block, IrFunction func, Source deleteItem) {
       Register castResult = Register.genTypedLocalRegister(new NullType(), block.getLabel());
 
-      BitcastInstruction cast = new BitcastInstruction(castResult, deleteItem);
-      FreeCallInstruction call = new FreeCallInstruction(castResult);
+      BitcastLLVMInstruction cast = new BitcastLLVMInstruction(castResult, deleteItem);
+      FreeCallLLVMInstruction call = new FreeCallLLVMInstruction(castResult);
 
       block.addCode(cast);
       block.addCode(call);

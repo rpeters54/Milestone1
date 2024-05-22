@@ -1,5 +1,6 @@
 package ast;
 
+import ast.declarations.TypeDeclaration;
 import instructions.Instruction;
 import instructions.Register;
 

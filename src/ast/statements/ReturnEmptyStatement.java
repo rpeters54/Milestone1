@@ -1,10 +1,8 @@
 package ast.statements;
 
 import ast.*;
-import ast.types.FunctionType;
-import ast.types.Type;
-import ast.types.VoidType;
-import instructions.UnconditionalBranchInstruction;
+import ast.types.*;
+import instructions.llvm.UnconditionalBranchLLVMInstruction;
 
 public class ReturnEmptyStatement
    extends AbstractStatement
@@ -33,14 +31,15 @@ public class ReturnEmptyStatement
 
    @Override
    public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
-      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      UnconditionalBranchLLVMInstruction jump = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
       block.addCode(jump);
+      block.addChild(Function.returnBlock);
       return block;
    }
 
    @Override
    public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
-      UnconditionalBranchInstruction jump = new UnconditionalBranchInstruction(Function.returnLabel);
+      UnconditionalBranchLLVMInstruction jump = new UnconditionalBranchLLVMInstruction(Function.returnLabel);
       block.addCode(jump);
       block.addChild(Function.returnBlock);
       return block;

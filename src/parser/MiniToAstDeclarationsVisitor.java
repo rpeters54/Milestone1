@@ -1,11 +1,10 @@
 package parser;
 
+import ast.declarations.Declaration;
 import ast.types.Type;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import java.util.List;
 import java.util.ArrayList;
-
-import ast.*;
 
 public class MiniToAstDeclarationsVisitor
    extends MiniBaseVisitor<List<Declaration>>

@@ -4,7 +4,9 @@ import ast.*;
 import ast.expressions.Expression;
 import ast.types.IntType;
 import ast.types.Type;
-import instructions.PrintCallInstruction;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
+import instructions.llvm.PrintCallLLVMInstruction;
 import instructions.Register;
 import instructions.Source;
 
@@ -48,7 +50,7 @@ public class PrintStatement
 
    public BasicBlock evalPrint(BasicBlock block, Source printItem) {
       Register dummy = Register.genTypedLocalRegister(new IntType(), block.getLabel());
-      PrintCallInstruction print = new PrintCallInstruction(dummy, printItem, false);
+      PrintCallLLVMInstruction print = new PrintCallLLVMInstruction(dummy, printItem, false);
       block.addCode(print);
       return block;
    }

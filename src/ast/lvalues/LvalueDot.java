@@ -1,12 +1,11 @@
 package ast.lvalues;
 
 import ast.*;
+import ast.declarations.Declaration;
+import ast.declarations.TypeDeclaration;
 import ast.expressions.Expression;
-import ast.types.IntType;
-import ast.types.PointerType;
-import ast.types.StructType;
-import ast.types.Type;
-import instructions.GetElemPtrInstruction;
+import ast.types.*;
+import instructions.llvm.GetElemPtrLLVMInstruction;
 import instructions.Literal;
 import instructions.Register;
 import instructions.Source;
@@ -79,7 +78,7 @@ public class LvalueDot implements Lvalue {
         Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex), block.getLabel());
         Register gepResult = Register.genMemberRegister(new PointerType(memberType.copy()), block.getLabel());
 
-        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);
+        GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, structData, indexLiteral);
         block.addCode(gep);
 
         //return metadata for pointer to struct member

@@ -1,8 +1,11 @@
 package ast.expressions;
 
 import ast.*;
+import ast.declarations.TypeDeclaration;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.BitcastLLVMInstruction;
+import instructions.llvm.MallocCallLLVMInstruction;
 
 public class NewExpression
    extends AbstractExpression
@@ -48,8 +51,9 @@ public class NewExpression
       Register castResult = Register.genTypedLocalRegister(type.copy(), block.getLabel());
 
       // generate both instructions and add them to the block
-      MallocCallInstruction call = new MallocCallInstruction(mallocResult, size);
-      BitcastInstruction cast = new BitcastInstruction(castResult, mallocResult);
+      MallocCallLLVMInstruction call = new MallocCallLLVMInstruction(mallocResult, size);
+      BitcastLLVMInstruction cast = new BitcastLLVMInstruction(castResult, mallocResult);
+
       block.addCode(call);
       block.addCode(cast);
 

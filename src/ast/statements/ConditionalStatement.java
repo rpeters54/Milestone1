@@ -2,12 +2,10 @@ package ast.statements;
 
 import ast.*;
 import ast.expressions.Expression;
-import ast.types.BoolType;
-import ast.types.Type;
-import ast.types.VoidType;
+import ast.types.*;
 import instructions.*;
-
-import java.util.*;
+import instructions.llvm.ConditionalBranchLLVMInstruction;
+import instructions.llvm.UnconditionalBranchLLVMInstruction;
 
 public class ConditionalStatement
    extends AbstractStatement
@@ -54,62 +52,81 @@ public class ConditionalStatement
 
    @Override
    public BasicBlock toStackBlocks(BasicBlock block, IrFunction func) {
-
-      // evaluate the guard
-      Source guardData = guard.toStackInstructions(block, func);
-
-      // create and traverse true basic block
-      Label trueStub = new Label();
-      BasicBlock lastTrueBlock = makeStackSubBlock(block, thenBlock,trueStub, func);
-      boolean thenReturns = lastTrueBlock.endsWithJump();
-
-
-      Label falseStub = new Label();
-      BasicBlock lastFalseBlock = makeStackSubBlock(block, elseBlock, falseStub, func);
-      boolean elseReturns = lastFalseBlock.endsWithJump();
-
-      // print the conditional branch at the end of the original block
-      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
-      block.addCode(cond);
-      if (!(thenReturns && elseReturns)) {
-         BasicBlock endBlock = new BasicBlock();
-         func.addToQueue(endBlock);
-         Label endStub = new Label();
-         endBlock.setLabel(endStub);
-         if (!thenReturns) {
-            UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
-            lastTrueBlock.addCode(trueToEnd);
-            lastTrueBlock.addChild(endBlock);
-         }
-         if (!elseReturns) {
-            UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
-            lastFalseBlock.addCode(falseToEnd);
-            lastFalseBlock.addChild(endBlock);
-         }
-         return endBlock;
-      } else {
-         return lastFalseBlock;
-      }
+      return evalConditionalStatement(block, func, false);
+//
+//      // evaluate the guard
+//      Source guardData = guard.toStackInstructions(block, func);
+//
+//      // create and traverse true basic block
+//      Label trueStub = new Label();
+//      BasicBlock lastTrueBlock = makeStackSubBlock(block, thenBlock,trueStub, func);
+//      boolean thenReturns = lastTrueBlock.endsWithJump();
+//
+//
+//      Label falseStub = new Label();
+//      BasicBlock lastFalseBlock = makeStackSubBlock(block, elseBlock, falseStub, func);
+//      boolean elseReturns = lastFalseBlock.endsWithJump();
+//
+//      // print the conditional branch at the end of the original block
+//      ConditionalBranchLLVMInstruction cond = new ConditionalBranchLLVMInstruction(guardData, trueStub, falseStub);
+//      block.addCode(cond);
+//
+//      if (!(thenReturns && elseReturns)) {
+//         BasicBlock endBlock = new BasicBlock();
+//         func.addToQueue(endBlock);
+//         Label endStub = new Label();
+//         endBlock.setLabel(endStub);
+//         if (!thenReturns) {
+//            UnconditionalBranchLLVMInstruction trueToEnd = new UnconditionalBranchLLVMInstruction(endStub);
+//            lastTrueBlock.addCode(trueToEnd);
+//            lastTrueBlock.addChild(endBlock);
+//         }
+//         if (!elseReturns) {
+//            UnconditionalBranchLLVMInstruction falseToEnd = new UnconditionalBranchLLVMInstruction(endStub);
+//            lastFalseBlock.addCode(falseToEnd);
+//            lastFalseBlock.addChild(endBlock);
+//         }
+//         return endBlock;
+//      } else {
+//         return lastFalseBlock;
+//      }
    }
 
    @Override
    public BasicBlock toSSABlocks(BasicBlock block, IrFunction func) {
-      Source guardData = guard.toSSAInstructions(block, func);
+      return evalConditionalStatement(block, func, true);
+   }
+
+   public BasicBlock evalConditionalStatement(BasicBlock block, IrFunction func, boolean isSSA) {
+      Source guardData;
+      if (isSSA) {
+         guardData = guard.toSSAInstructions(block, func);
+      } else {
+         guardData = guard.toStackInstructions(block, func);
+      }
 
       // create and traverse true basic block
       Label trueStub = new Label();
-      BasicBlock lastTrueBlock = makeSSASubBlock(block, thenBlock, trueStub, func);
+      BasicBlock lastTrueBlock;
+      if (isSSA) {
+         lastTrueBlock = makeSSASubBlock(block, thenBlock, trueStub, func);
+      } else {
+         lastTrueBlock = makeStackSubBlock(block, thenBlock, trueStub, func);
+      }
       boolean thenReturns = lastTrueBlock.endsWithJump();
 
 
       Label falseStub = new Label();
-      BasicBlock lastFalseBlock = makeSSASubBlock(block, elseBlock, falseStub, func);
+      BasicBlock lastFalseBlock;
+      if (isSSA) {
+         lastFalseBlock = makeSSASubBlock(block, elseBlock, falseStub, func);
+      } else {
+         lastFalseBlock = makeStackSubBlock(block, elseBlock, falseStub, func);
+      }
       boolean elseReturns = lastFalseBlock.endsWithJump();
 
-
-
       // print the conditional branch at the end of the original block
-      ConditionalBranchInstruction cond = new ConditionalBranchInstruction(guardData, trueStub, falseStub);
+      ConditionalBranchLLVMInstruction cond = new ConditionalBranchLLVMInstruction(guardData, trueStub, falseStub);
       block.addCode(cond);
 
       if (thenReturns && elseReturns) {
@@ -122,25 +139,26 @@ public class ConditionalStatement
       endBlock.setLabel(endStub);
 
       if (!thenReturns && elseReturns) {
-         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+         UnconditionalBranchLLVMInstruction trueToEnd = new UnconditionalBranchLLVMInstruction(endStub);
          lastTrueBlock.addCode(trueToEnd);
          lastTrueBlock.addChild(endBlock);
       }
 
       if (!elseReturns && thenReturns) {
-         UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
+         UnconditionalBranchLLVMInstruction falseToEnd = new UnconditionalBranchLLVMInstruction(endStub);
          lastFalseBlock.addCode(falseToEnd);
          lastFalseBlock.addChild(endBlock);
       }
 
       if (!elseReturns && !thenReturns) {
-         UnconditionalBranchInstruction trueToEnd = new UnconditionalBranchInstruction(endStub);
+         UnconditionalBranchLLVMInstruction trueToEnd = new UnconditionalBranchLLVMInstruction(endStub);
          lastTrueBlock.addCode(trueToEnd);
          lastTrueBlock.addChild(endBlock);
-         UnconditionalBranchInstruction falseToEnd = new UnconditionalBranchInstruction(endStub);
+         UnconditionalBranchLLVMInstruction falseToEnd = new UnconditionalBranchLLVMInstruction(endStub);
          lastFalseBlock.addCode(falseToEnd);
          lastFalseBlock.addChild(endBlock);
-         endBlock.reconcileBranch(lastTrueBlock, lastFalseBlock);
+         if (isSSA)
+            endBlock.reconcileBranch(lastTrueBlock, lastFalseBlock);
       }
 
       return endBlock;

@@ -1,6 +1,7 @@
 package instructions;
 
 import ast.types.Type;
+import instructions.llvm.TypeMap;
 
 import java.util.Objects;
 
@@ -13,11 +14,6 @@ public class Literal implements Source {
         this.type = type;
         this.value = value;
         this.label = label;
-    }
-
-    @Override
-    public String getValue() {
-        return value;
     }
 
     @Override
@@ -52,6 +48,11 @@ public class Literal implements Source {
     @Override
     public void setLabel(Label label) {
         this.label = label;
+    }
+
+    @Override
+    public String toString() {
+        return value;
     }
 
     @Override

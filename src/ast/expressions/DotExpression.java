@@ -1,11 +1,12 @@
 package ast.expressions;
 
 import ast.*;
-import ast.types.IntType;
-import ast.types.PointerType;
-import ast.types.StructType;
-import ast.types.Type;
+import ast.declarations.Declaration;
+import ast.declarations.TypeDeclaration;
+import ast.types.*;
 import instructions.*;
+import instructions.llvm.GetElemPtrLLVMInstruction;
+import instructions.llvm.LoadLLVMInstruction;
 
 public class DotExpression
         extends AbstractExpression {
@@ -77,8 +78,8 @@ public class DotExpression
         Register loadResult = Register.genTypedLocalRegister(memberType.copy(), block.getLabel());
 
         // format instruction strings
-        GetElemPtrInstruction gep = new GetElemPtrInstruction(gepResult, structData, indexLiteral);
-        LoadInstruction load = new LoadInstruction(loadResult, gepResult);
+        GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, structData, indexLiteral);
+        LoadLLVMInstruction load = new LoadLLVMInstruction(loadResult, gepResult);
 
         // add instructions to the basic block
         block.addCode(gep);

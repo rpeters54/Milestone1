@@ -4,6 +4,8 @@ package ast.statements;
 import ast.*;
 import ast.expressions.Expression;
 import ast.types.Type;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 
 public class InvocationStatement
    extends AbstractStatement

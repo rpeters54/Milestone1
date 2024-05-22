@@ -1,6 +1,6 @@
 package ast.types;
 
-import ast.Declaration;
+import ast.declarations.Declaration;
 import ast.Function;
 
 import java.util.ArrayList;

@@ -2,6 +2,8 @@ package ast.statements;
 
 import ast.*;
 import ast.types.Type;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 import ast.types.VoidType;
 
 import java.util.List;

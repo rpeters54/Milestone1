@@ -4,9 +4,11 @@ import ast.*;
 import ast.lvalues.Lvalue;
 import ast.expressions.Expression;
 import ast.types.NullType;
-import ast.types.StructType;
 import ast.types.Type;
+import ast.types.TypeEnvironment;
+import ast.types.TypeException;
 import instructions.*;
+import instructions.llvm.StoreLLVMInstruction;
 
 public class AssignmentStatement
    extends AbstractStatement {
@@ -52,7 +54,7 @@ public class AssignmentStatement
       }
       Register storageRegister = (Register) storageLocation;
 
-      StoreInstruction store = new StoreInstruction(storageRegister, valueToStore);
+      StoreLLVMInstruction store = new StoreLLVMInstruction(valueToStore, storageRegister);
       block.addCode(store);
 
       return block;
@@ -67,8 +69,10 @@ public class AssignmentStatement
       if (storageLocation instanceof Register) {
          Register storageRegister = (Register) storageLocation;
          repairNull(storageRegister.getType(), valueToStore);
-         StoreInstruction store = new StoreInstruction(storageRegister, valueToStore);
+         StoreLLVMInstruction store = new StoreLLVMInstruction(valueToStore, storageRegister);
+
          block.addCode(store);
+
          return block;
       }
 
@@ -77,6 +81,7 @@ public class AssignmentStatement
          // if it's a local add it to the block bindings
          repairNull(func.getTypeOfDeclaration(target.getId()), valueToStore);
          block.addLocalBinding(target.getId(), valueToStore);
+
          return block;
       }
 
@@ -84,12 +89,13 @@ public class AssignmentStatement
       // if it's a global store it like usual
       if (globalLookup != null) {
          repairNull(globalLookup.getType(), valueToStore);
-         StoreInstruction store = new StoreInstruction(globalLookup, valueToStore);
+         StoreLLVMInstruction store = new StoreLLVMInstruction(valueToStore, globalLookup);
          block.addCode(store);
+
          return block;
       }
 
-      throw new IllegalArgumentException("Assign.toSSABlocks(): failed to find bound value");
+      throw new RuntimeException("AssignmentStatement::toSSABlocks: failed to find bound value");
    }
 
    void repairNull(Type type, Source maybeNull) {

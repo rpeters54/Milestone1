@@ -1,10 +1,14 @@
 package ast;
 
+import ast.declarations.Declaration;
+import ast.declarations.TypeDeclaration;
 import ast.types.*;
 import instructions.*;
+import instructions.llvm.DriverDeclarationLLVMInstruction;
+import instructions.llvm.GlobalRegisterDeclarationLLVMInstruction;
+import instructions.llvm.TypeDeclarationLLVMInstruction;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Program {
     private final List<TypeDeclaration> types;
@@ -90,12 +94,12 @@ public class Program {
         IrProgram prog = new IrProgram();
 
         // add driver code to the top of the file
-        prog.addToHeader(new DriverDeclarationInstruction());
+        prog.addToHeader(new DriverDeclarationLLVMInstruction());
 
         // add type declarations to env and program header
         for (TypeDeclaration typeDecl : types) {
             prog.addTypeDeclaration(typeDecl);
-            TypeDeclarationInstruction typeDeclInst = new TypeDeclarationInstruction(typeDecl);
+            TypeDeclarationLLVMInstruction typeDeclInst = new TypeDeclarationLLVMInstruction(typeDecl);
             prog.addToHeader(typeDeclInst);
         }
 
@@ -103,7 +107,7 @@ public class Program {
         for (Declaration decl : decls) {
             Register global = Register.genGlobalRegister(new PointerType(decl.getType()), decl.getName());
             prog.addGlobalBinding(decl.getName(), global);
-            GlobalRegisterDeclarationInstruction gRDI = new GlobalRegisterDeclarationInstruction(global);
+            GlobalRegisterDeclarationLLVMInstruction gRDI = new GlobalRegisterDeclarationLLVMInstruction(global);
             prog.addToHeader(gRDI);
         }
 
