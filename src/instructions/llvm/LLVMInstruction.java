@@ -16,6 +16,6 @@ public interface LLVMInstruction extends Instruction {
     BasicBlock getBlock();
     void setBlock(BasicBlock block);
 
-    List<ArmInstruction> toArm();
+    List<Instruction> toArm();
 
 }

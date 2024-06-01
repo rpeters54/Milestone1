@@ -76,7 +76,7 @@ public class LvalueDot implements Lvalue {
         Type memberType = memberDecl.getType();
 
         Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex), block.getLabel());
-        Register gepResult = Register.genMemberRegister(new PointerType(memberType.copy()), block.getLabel());
+        Register gepResult = Register.genTypedLocalRegister(new PointerType(memberType.copy()), block.getLabel());
 
         GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, structData, indexLiteral);
         block.addCode(gep);

@@ -9,41 +9,11 @@ public class TypeDeclaration {
     private final int lineNum;
     private final String name;
     private final List<Declaration> fields;
-    private final int size;
 
     public TypeDeclaration(int lineNum, String name, List<Declaration> fields) {
         this.lineNum = lineNum;
         this.name = name;
         this.fields = fields;
-        this.size = calculateSize();
-
-    }
-
-    private int calculateSize() {
-        int size = 0;
-        for (Declaration decl : fields) {
-            Type type = decl.getType();
-            if (type instanceof IntType) {
-                size += 8;
-            } else if (type instanceof ArrayType){
-                size += 8;
-            } else if (type instanceof BoolType) {
-                size += 1;
-            } else if (type instanceof VoidType) {
-                size += 8;
-            } else if (type instanceof NullType) {
-                size += 8;
-            } else if (type instanceof PointerType){
-                size += 8;
-            } else if (type instanceof FunctionType) {
-                size += 8;
-            } else if (type instanceof StructType) {
-                size += 8;
-            } else {
-                throw new IllegalArgumentException("Non-Existent Type");
-            }
-        }
-        return size;
     }
 
     public int getLineNum() {
@@ -58,8 +28,21 @@ public class TypeDeclaration {
         return fields;
     }
 
-    public int getSize() {
+    public int getLLVMSize() {
+        int size = 0;
+        for (Declaration decl : fields) {
+            Type type = decl.getType();
+            if (type instanceof BoolType) {
+                size += 1;
+            } else {
+                size += 8;
+            }
+        }
         return size;
+    }
+
+    public int getArmSize() {
+        return fields.size() * 8;
     }
 
     /**

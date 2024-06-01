@@ -1,9 +1,10 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.Register;
 import instructions.Source;
-import instructions.arm.ArmInstruction;
-import instructions.arm.LoadArmInstruction;
+import instructions.arm.LoadLabelArmInstruction;
+import instructions.arm.LoadRegisterArmInstruction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,11 +28,18 @@ public class LoadLLVMInstruction extends AbstractLLVMInstruction implements Crit
         String deref = TypeMap.deref(loc().getTypeString());
         // <result> = load <ty>, <ty>* <source>
         return String.format("%s = load %s, %s %s",
-                getResult(), deref, loc().getTypeString(), loc());
+                getResult().llvmString(), deref, loc().getTypeString(), loc().llvmString());
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        return Collections.singletonList(new LoadArmInstruction(getResult(), getSource(0)));
+    public List<Instruction> toArm() {
+        if (loc() instanceof Register && ((Register) loc()).isGlobal()) {
+            return Arrays.asList(
+                    new LoadLabelArmInstruction(getResult(), loc().toString()),
+                    new LoadRegisterArmInstruction(getResult(), getResult())
+            );
+        } else {
+            return Collections.singletonList(new LoadRegisterArmInstruction(getResult(), getSource(0)));
+        }
     }
 }

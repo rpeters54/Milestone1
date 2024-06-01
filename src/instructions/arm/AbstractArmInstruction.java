@@ -26,22 +26,22 @@ public abstract class AbstractArmInstruction implements ArmInstruction {
 
     public AbstractArmInstruction(List<Register> results, Source op) {
         this.results = results;
-        this.sources = Collections.singletonList(op);
+        this.sources = Arrays.asList(op);
     }
 
     public AbstractArmInstruction(Register result, List<Source> sources) {
-        this.results = Collections.singletonList(result);
+        this.results = Arrays.asList(result);
         this.sources = sources;
     }
 
     public AbstractArmInstruction(Register result, Source left, Source right) {
-        this.results = Collections.singletonList(result);
+        this.results = Arrays.asList(result);
         this.sources = Arrays.asList(left, right);
     }
 
     public AbstractArmInstruction(Register result, Source op) {
-        this.results = Collections.singletonList(result);
-        this.sources = Collections.singletonList(op);
+        this.results = Arrays.asList(result);
+        this.sources = Arrays.asList(op);
     }
 
     public List<Register> getResults() {

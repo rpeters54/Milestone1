@@ -1,5 +1,6 @@
 package instructions;
 
+import ast.types.BoolType;
 import ast.types.Type;
 import instructions.llvm.TypeMap;
 
@@ -51,8 +52,23 @@ public class Literal implements Source {
     }
 
     @Override
+    public String llvmString() {
+        return value;
+    }
+
+    @Override
     public String toString() {
         return value;
+    }
+
+    public void toArm() {
+        if (type instanceof BoolType) {
+            switch(value) {
+                case "true", "1" -> value = "1";
+                case "false", "0" -> value = "0";
+                default -> throw new RuntimeException("Literal::toArm: Invalid boolean value");
+            }
+        }
     }
 
     @Override

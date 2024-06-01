@@ -1,5 +1,6 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.arm.ArmInstruction;
 import instructions.arm.ReturnArmInstruction;
 
@@ -19,7 +20,7 @@ public class ReturnVoidLLVMInstruction extends AbstractLLVMInstruction implement
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
+    public List<Instruction> toArm() {
         return Collections.singletonList(new ReturnArmInstruction());
     }
 }

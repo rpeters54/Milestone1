@@ -74,7 +74,7 @@ public class DotExpression
         Literal indexLiteral = new Literal(new IntType(), Integer.toString(memberIndex), block.getLabel());
 
         // get next 2 regs
-        Register gepResult = Register.genMemberRegister(new PointerType(memberType.copy()), block.getLabel());
+        Register gepResult = Register.genTypedLocalRegister(new PointerType(memberType.copy()), block.getLabel());
         Register loadResult = Register.genTypedLocalRegister(memberType.copy(), block.getLabel());
 
         // format instruction strings

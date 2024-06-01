@@ -1,9 +1,12 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.Label;
 import instructions.arm.ArmInstruction;
+import instructions.arm.UnconditionalBranchArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class UnconditionalBranchLLVMInstruction extends AbstractLLVMInstruction implements JumpInstruction {
@@ -30,7 +33,7 @@ public class UnconditionalBranchLLVMInstruction extends AbstractLLVMInstruction 
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        throw new RuntimeException("Fix this first");
+    public List<Instruction> toArm() {
+        return Collections.singletonList(new UnconditionalBranchArmInstruction(stub));
     }
 }

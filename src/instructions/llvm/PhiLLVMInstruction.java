@@ -1,12 +1,14 @@
 package instructions.llvm;
 
 import ast.PhiTuple;
+import instructions.Instruction;
 import instructions.Label;
 import instructions.Register;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class PhiLLVMInstruction extends AbstractLLVMInstruction {
@@ -26,6 +28,10 @@ public class PhiLLVMInstruction extends AbstractLLVMInstruction {
         this.boundName = boundName;
     }
 
+    public int getIndexByLabel(Label memberLabel) {
+        return memberLabels.indexOf(memberLabel);
+    }
+
     public String getBoundName() {
         return boundName;
     }
@@ -40,6 +46,10 @@ public class PhiLLVMInstruction extends AbstractLLVMInstruction {
 
     public void setMemberLabels(List<Label> memberLabels) {
         this.memberLabels = memberLabels;
+    }
+
+    public void setMemberLabel(int index, Label label) {
+        memberLabels.set(index, label);
     }
 
     public void setBoundName(String name) {
@@ -89,11 +99,11 @@ public class PhiLLVMInstruction extends AbstractLLVMInstruction {
 
     @Override
     public String toString() {
-        String start = String.format("%s = phi %s ", getResult(), getResult().getTypeString());
+        String start = String.format("%s = phi %s ", getResult().llvmString(), getResult().getTypeString());
         StringBuilder builder = new StringBuilder(start);
         for (int i = 0; i < memberLabels.size(); i++) {
             String memberString = String.format("[%s, %%%s], ",
-                    getSource(i),
+                    getSource(i).llvmString(),
                     memberLabels.get(i).getName());
             builder.append(memberString);
         }
@@ -111,8 +121,11 @@ public class PhiLLVMInstruction extends AbstractLLVMInstruction {
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        // should not be handled here
-        return null;
+    public List<Instruction> toArm() {
+        List<PhiTuple> tuples = new ArrayList<>();
+        for (int i = 0; i < memberLabels.size(); i++) {
+            tuples.add(new PhiTuple(getSource(i), getMemberLabel(i)));
+        }
+        return Collections.singletonList(new PhiLLVMInstruction(getBoundName(), getResult(), tuples));
     }
 }

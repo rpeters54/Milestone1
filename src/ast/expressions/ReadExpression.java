@@ -35,7 +35,7 @@ public class ReadExpression
    private Source evalRead(BasicBlock block, IrFunction func) {
       Register dummy = Register.genTypedLocalRegister(new IntType(), block.getLabel());
       Register readResult = Register.genTypedLocalRegister(new IntType(), block.getLabel());
-      ReadCallLLVMInstruction read = new ReadCallLLVMInstruction(dummy, readResult);
+      ReadCallLLVMInstruction read = new ReadCallLLVMInstruction(readResult, dummy);
       block.addCode(read);
 
       return readResult;

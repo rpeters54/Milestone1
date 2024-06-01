@@ -10,4 +10,6 @@ public interface Instruction {
     // getters (self explanatory)
     Register getResult();
     List<Source> getSources();
+
+    List<Register> getResults();
 }

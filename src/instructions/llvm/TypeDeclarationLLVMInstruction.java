@@ -3,6 +3,7 @@ package instructions.llvm;
 import ast.declarations.Declaration;
 import ast.declarations.TypeDeclaration;
 import ast.types.Type;
+import instructions.Instruction;
 import instructions.Label;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
@@ -44,7 +45,8 @@ public class TypeDeclarationLLVMInstruction extends AbstractLLVMInstruction {
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        throw new RuntimeException("Fix this first");
+    public List<Instruction> toArm() {
+        //do nothing
+        return new ArrayList<>();
     }
 }

@@ -1,12 +1,14 @@
 package instructions.llvm;
 
 import ast.types.IntType;
+import instructions.Instruction;
 import instructions.Literal;
 import instructions.Register;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
 import instructions.arm.CmpArmInstruction;
 import instructions.arm.CselArmInstruction;
+import instructions.arm.MovArmInstruction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,14 +29,15 @@ public class SelectLLVMInstruction extends AbstractLLVMInstruction {
         Source right = getSource(2);
 
         return String.format("%s = select %s %s, %s %s, %s %s",
-                result, cond.getTypeString(), cond,
-                left.getTypeString(), left, right.getTypeString(), right);
+                result.llvmString(), cond.getTypeString(), cond.llvmString(),
+                left.getTypeString(), left.llvmString(), right.getTypeString(), right.llvmString());
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        List<ArmInstruction> instList = new ArrayList<>();
-        instList.add(new CmpArmInstruction(getSource(0),
+    public List<Instruction> toArm() {
+        List<Instruction> instList = new ArrayList<>();
+        Register leftReg = MovArmInstruction.optionalMov(getSource(0), instList);
+        instList.add(new CmpArmInstruction(leftReg,
                 new Literal(new IntType(), "0", getSource(0).getLabel())));
         instList.add(new CselArmInstruction(getResult(), getSource(1), getSource(2), "ne"));
         return instList;

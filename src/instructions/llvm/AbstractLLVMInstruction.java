@@ -5,6 +5,7 @@ import instructions.Label;
 import instructions.Register;
 import instructions.Source;
 
+import java.util.Collections;
 import java.util.List;
 
 public abstract class AbstractLLVMInstruction implements LLVMInstruction {
@@ -50,6 +51,11 @@ public abstract class AbstractLLVMInstruction implements LLVMInstruction {
 
     public Register getResult() {
         return result;
+    }
+
+    @Override
+    public List<Register> getResults() {
+        return Collections.singletonList(result);
     }
 
     public void setResult(Register result) {

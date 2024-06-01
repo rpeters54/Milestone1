@@ -44,14 +44,13 @@ public class NewExpression
       TypeDeclaration td = func.lookupTypeDeclaration(id);
       Type type = new StructType(-1, td.getName());
 
-      // generate literal referring to struct size
-      Literal size = new Literal(new IntType(), Integer.toString(td.getSize()), block.getLabel());
+
       // allocate registers for both results
       Register mallocResult = Register.genTypedLocalRegister(new NullType(), block.getLabel());
       Register castResult = Register.genTypedLocalRegister(type.copy(), block.getLabel());
 
       // generate both instructions and add them to the block
-      MallocCallLLVMInstruction call = new MallocCallLLVMInstruction(mallocResult, size);
+      MallocCallLLVMInstruction call = new MallocCallLLVMInstruction(mallocResult, td);
       BitcastLLVMInstruction cast = new BitcastLLVMInstruction(castResult, mallocResult);
 
       block.addCode(call);

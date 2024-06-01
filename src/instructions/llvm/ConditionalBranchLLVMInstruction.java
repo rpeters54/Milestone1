@@ -2,9 +2,7 @@ package instructions.llvm;
 
 import ast.expressions.BinaryExpression;
 import ast.types.IntType;
-import instructions.Label;
-import instructions.Literal;
-import instructions.Source;
+import instructions.*;
 import instructions.arm.*;
 
 import java.util.ArrayList;
@@ -41,14 +39,15 @@ public class ConditionalBranchLLVMInstruction extends AbstractLLVMInstruction im
     @Override
     public String toString() {
         return String.format("br %s %s, label %%%s, label %%%s",
-                getSource(0).getTypeString(), getSource(0),
+                getSource(0).getTypeString(), getSource(0).llvmString(),
                 trueStub.getName(), falseStub.getName());
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        List<ArmInstruction> instList = new ArrayList<>();
-        instList.add(new CmpArmInstruction(getSource(0), new Literal(new IntType(), "0", getSource(0).getLabel())));
+    public List<Instruction> toArm() {
+        List<Instruction> instList = new ArrayList<>();
+        Register leftReg = MovArmInstruction.optionalMov(getSource(0), instList);
+        instList.add(new CmpArmInstruction(leftReg, new Literal(new IntType(), "0", getSource(0).getLabel())));
         instList.add(new ConditionalBranchArmInstruction(trueStub, BinaryExpression.Operator.NE));
         instList.add(new UnconditionalBranchArmInstruction(falseStub));
         return instList;

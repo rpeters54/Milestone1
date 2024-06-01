@@ -1,9 +1,11 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.Register;
 import instructions.arm.ArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class AllocaLLVMInstruction extends AbstractLLVMInstruction {
@@ -19,11 +21,11 @@ public class AllocaLLVMInstruction extends AbstractLLVMInstruction {
         String ptr = getResult().getTypeString();
         String deref = ptr.substring(0, ptr.length()-1);
         // <result> = alloca <ty>
-        return String.format("%s = alloca %s", getResult(), deref);
+        return String.format("%s = alloca %s", getResult().llvmString(), deref);
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        throw new RuntimeException("Fix this first");
+    public List<Instruction> toArm() {
+        return Collections.singletonList(new AllocaLLVMInstruction(getResult()));
     }
 }

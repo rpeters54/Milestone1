@@ -3,6 +3,7 @@ package instructions.llvm;
 import ast.declarations.Declaration;
 import ast.types.FunctionType;
 import ast.Function;
+import instructions.Instruction;
 import instructions.Register;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
@@ -33,7 +34,7 @@ public class CallLLVMInstruction extends AbstractLLVMInstruction implements Crit
         if (getResult() == null) {
             start = String.format("call %s @%s(", TypeMap.ttos(type.getOutput()), function.getName());
         } else {
-            start = String.format("%s = call %s @%s(", getResult(), TypeMap.ttos(type.getOutput()), function.getName());
+            start = String.format("%s = call %s @%s(", getResult().llvmString(), TypeMap.ttos(type.getOutput()), function.getName());
         }
         StringBuilder callBuilder = new StringBuilder(start);
         int startLength = callBuilder.length();
@@ -42,7 +43,7 @@ public class CallLLVMInstruction extends AbstractLLVMInstruction implements Crit
             argTypes.add(TypeMap.ttos(param.getType()));
         }
         for (int i = 0; i < argTypes.size(); i++) {
-            callBuilder.append(String.format("%s %s, ", argTypes.get(i), getSource(i)));
+            callBuilder.append(String.format("%s %s, ", argTypes.get(i), getSource(i).llvmString()));
         }
         if (startLength != callBuilder.length()) {
             callBuilder.delete(callBuilder.length()-2, callBuilder.length());
@@ -52,9 +53,8 @@ public class CallLLVMInstruction extends AbstractLLVMInstruction implements Crit
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        List<ArmInstruction> instList = new ArrayList<>();
-
+    public List<Instruction> toArm() {
+        List<Instruction> instList = new ArrayList<>();
         if (getSources().size() > 8) {
             throw new RuntimeException("CallLLVMInstruction - toArm: Can't Define a function with > 8 args (Sorry)");
         }
@@ -62,7 +62,9 @@ public class CallLLVMInstruction extends AbstractLLVMInstruction implements Crit
             instList.add(new MovArmInstruction(Register.genArmRegister(i), getSource(i)));
         }
         instList.add(new BranchLinkArmInstruction(function.getName(), function.getParams().size()));
-        instList.add(new MovArmInstruction(getResult(), Register.genArmRegister(0)));
+        if (getResult() != null) {
+            instList.add(new MovArmInstruction(getResult(), Register.genArmRegister(0)));
+        }
         return instList;
     }
 }

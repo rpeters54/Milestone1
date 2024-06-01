@@ -16,15 +16,14 @@ public class BinaryArmInstruction extends AbstractArmInstruction {
 
     @Override
     public String toString() {
-
         String opName = switch (op) {
-            case TIMES -> "MUL";
-            case DIVIDE -> "SDIV";
-            case PLUS -> "ADD";
-            case MINUS -> "SUB";
-            case AND -> "AND";
-            case OR -> "OR";
-            case XOR -> "XOR";
+            case TIMES -> "mul";
+            case DIVIDE -> "sdiv";
+            case PLUS -> "add";
+            case MINUS -> "sub";
+            case AND -> "and";
+            case OR -> "or";
+            case XOR -> "eor";
             default -> throw new IllegalArgumentException("Bad Binop Name");
         };
 

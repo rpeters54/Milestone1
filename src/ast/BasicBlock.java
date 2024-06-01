@@ -2,6 +2,8 @@ package ast;
 
 import instructions.*;
 import instructions.Instruction;
+import instructions.arm.AbstractArmInstruction;
+import instructions.arm.ArmInstruction;
 import instructions.llvm.JumpInstruction;
 import instructions.llvm.PhiLLVMInstruction;
 
@@ -76,6 +78,9 @@ public class BasicBlock {
         return label;
     }
 
+    public int getSernum() {
+        return sernum;
+    }
 
     // deathmark update/query for dead code elim
     public void markCritical() {
@@ -346,6 +351,111 @@ public class BasicBlock {
         return allOccurrences;
     }
 
+    /**
+     * Checks if one of the this block's parents is also its child (auroborus style)
+     */
+    public BasicBlock paradox() {
+        for (BasicBlock parent : parents) {
+            if (parent.sernum >= this.sernum)
+                return parent;
+        }
+        return null;
+    }
 
+//    /**
+//     * returns an map of sernums to sets where each set defines the live
+//     * values at the basic block of the same sernum
+//     * Note: only traverse up the graph, the calling basic block
+//     * must be the epilogue block
+//     */
+//    public Map<Integer, Set<Register>> liveRange() {
+//        if (this.children.size() != 0)
+//            throw new RuntimeException("BasicBlock::liveRange: function may only be called by the epilogue block");
+//        Map<Integer, Set<Register>> liveValues = new HashMap<>();
+//        liveRangeHelper(liveValues);
+//        return liveValues;
+//    }
+//
+//    private void liveRangeHelper(Map<Integer, Set<Register>> liveValues) {
+//
+//        // if already visited
+//        if (liveValues.get(sernum) != null) {
+//            // check if anything has changed since the previous visit
+//            List<Set<Register>> successors = new ArrayList<>();
+//            for (BasicBlock child : children) {
+//                successors.add(liveValues.get(child.sernum));
+//            }
+//            Set<Register> liveSet = buildLiveset(successors);
+//            Set<Register> oldSet = liveValues.get(sernum);
+//            // if nothing has, return
+//            if (oldSet.equals(liveSet))
+//                return;
+//
+//            // update the liveset
+//            liveValues.put(sernum, liveSet);
+//
+//            // if things have changed, propagate the changes to all parents
+//            for (BasicBlock parent : parents) {
+//                parent.liveRangeHelper(liveValues);
+//            }
+//            return;
+//        }
+//
+//        // generate a base set
+//        liveValues.put(sernum, new HashSet<>());
+//
+//
+//        // ensure all successors have already been visited
+//        // add all their livesets to a list
+//        List<Set<Register>> successors = new ArrayList<>();
+//        for (BasicBlock child : children) {
+//            if (liveValues.get(child.sernum) == null) {
+//                child.liveRangeHelper(liveValues);
+//            }
+//            successors.add(liveValues.get(child.sernum));
+//        }
+//
+//        // put the liveset in the map
+//        liveValues.put(sernum,  buildLiveset(successors));
+//
+//        // make sure all parents have been visited
+//        for (BasicBlock parent : parents) {
+//            parent.liveRangeHelper(liveValues);
+//        }
+//    }
 
+    public Set<Register> computeLiveOut(Map<BasicBlock, Set<Register>> liveMap) {
+
+        Set<Register> liveout = new HashSet<>();
+
+        for (BasicBlock child : children) {
+            // create the gen and kill set
+            Set<Register> genSet = new HashSet<>();
+            Set<Register> killSet = new HashSet<>();
+            Set<Register> outSet = new HashSet<>();
+            Set<Register> temp = liveMap.get(child);
+            if (temp != null) {
+                outSet.addAll(temp);
+            }
+
+            for (Instruction inst : child.getContents()) {
+                for (Source source : inst.getSources()) {
+                    // if the source is a register that is not stored by default and not in the killset, add it
+                    if (source instanceof Register && !((Register) source).isGlobal() && !killSet.contains(source))
+                        genSet.add((Register) source);
+                }
+                // if the result register is not stored by default, add it to the kill set
+                for (Register result : inst.getResults()) {
+                    if (!result.isGlobal()) {
+                        killSet.add(result);
+                    }
+                }
+            }
+
+            outSet.removeAll(killSet);
+            genSet.addAll(outSet);
+            liveout.addAll(genSet);
+        }
+        return liveout;
+    }
 }

@@ -3,6 +3,7 @@ package ast;
 import ast.declarations.TypeDeclaration;
 import instructions.Instruction;
 import instructions.Register;
+import instructions.llvm.LLVMInstruction;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -115,6 +116,29 @@ public class IrProgram {
             writer.write("\n");
             for (IrFunction func : functions) {
                 func.toLLFile(writer);
+            }
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void toArmFile(String filename) {
+        try {
+            FileWriter writer = new FileWriter(filename);
+            List<Instruction> translatedList = new ArrayList<>();
+            for (Instruction inst : header) {
+                if (!(inst instanceof LLVMInstruction))
+                    throw new RuntimeException("toArmFile: header should ony contain llvm instructions");
+                translatedList.addAll(((LLVMInstruction)inst).toArm());
+            }
+            writer.write(".data\n");
+            for (Instruction inst : translatedList) {
+                writer.write(inst.toString());
+            }
+            writer.write("\n.text\n");
+            for (IrFunction func : functions) {
+                func.toArmFile(writer);
             }
             writer.close();
         } catch (IOException e) {

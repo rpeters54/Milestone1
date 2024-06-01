@@ -25,6 +25,6 @@ public class CsetArmInstruction extends AbstractArmInstruction {
             case NE -> "ne";
             default -> throw new RuntimeException("CsetArmInstruction::toString: invalid operand");
         };
-        return String.format("CSET %s, %s", getResult(), cond);
+        return String.format("cset %s, %s", getResult(), cond);
     }
 }

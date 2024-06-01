@@ -2,10 +2,13 @@ package instructions.llvm;
 
 import ast.types.PointerType;
 import ast.types.StructType;
+import instructions.Instruction;
 import instructions.Register;
 import instructions.arm.ArmInstruction;
+import instructions.arm.GlobalDeclarationArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class GlobalRegisterDeclarationLLVMInstruction extends AbstractLLVMInstruction {
@@ -26,11 +29,11 @@ public class GlobalRegisterDeclarationLLVMInstruction extends AbstractLLVMInstru
         } else {
             baseValue = "0";
         }
-        return String.format("%s = common global %s %s", getResult(), deref, baseValue);
+        return String.format("%s = common global %s %s", getResult().llvmString(), deref, baseValue);
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        throw new RuntimeException("Fix this first");
+    public List<Instruction> toArm() {
+        return Collections.singletonList(new GlobalDeclarationArmInstruction(getResult().toString()));
     }
 }

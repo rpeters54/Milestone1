@@ -1,5 +1,6 @@
 package instructions.arm;
 
+import ast.types.IntType;
 import instructions.Register;
 import instructions.Source;
 

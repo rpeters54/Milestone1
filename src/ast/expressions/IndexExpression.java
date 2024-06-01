@@ -52,7 +52,7 @@ public class IndexExpression
 
     private Source evalIndex(BasicBlock block, Source arrSource, Source indexSource) {
         // create a register that holds the pointer to the array item
-        Register gepResult = Register.genMemberRegister(arrSource.getType().copy(), block.getLabel());
+        Register gepResult = Register.genTypedLocalRegister(arrSource.getType().copy(), block.getLabel());
 
         // verify that the type of arrSource is pointer before casting
         if (!(arrSource.getType() instanceof ArrayType)) {

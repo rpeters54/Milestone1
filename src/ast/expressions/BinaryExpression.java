@@ -140,7 +140,6 @@ public class BinaryExpression
             block.addCode(cmp);
             result.setType(new BoolType());
 
-            Object obj = func.getCriticalInstruction(result);
             return result;
          }
          case AND, OR -> {

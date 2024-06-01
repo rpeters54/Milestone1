@@ -53,7 +53,7 @@ public class LvalueIndex implements Lvalue {
     }
 
     private Source evalLvalIndex(BasicBlock block, IrFunction func, Source arrData, Source indexData) {
-        Register gepResult = Register.genMemberRegister(arrData.getType().copy(), block.getLabel());
+        Register gepResult = Register.genTypedLocalRegister(arrData.getType().copy(), block.getLabel());
 
         GetElemPtrLLVMInstruction gep = new GetElemPtrLLVMInstruction(gepResult, arrData, indexData);
         block.addCode(gep);

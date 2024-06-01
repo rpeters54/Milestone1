@@ -16,6 +16,14 @@ public class ConditionalBranchArmInstruction extends AbstractArmInstruction {
         this.op = op;
     }
 
+    public Label getDestination() {
+        return trueStub;
+    }
+
+    public void setDestination(Label dest) {
+        trueStub = dest;
+    }
+
     @Override
     public String toString() {
         String cond = switch(op) {
@@ -27,6 +35,14 @@ public class ConditionalBranchArmInstruction extends AbstractArmInstruction {
             case NE -> "ne";
             default -> throw new RuntimeException("CsetArmInstruction::toString: invalid operand");
         };
-        return String.format("b%s %s", cond, trueStub);
+        return String.format("b%s %s", cond, trueStub.getName());
+    }
+
+    @Override
+    public void substituteLabel(Label original, Label replacement) {
+        super.substituteLabel(original, replacement);
+        if (trueStub.equals(original)) {
+            trueStub = replacement;
+        }
     }
 }

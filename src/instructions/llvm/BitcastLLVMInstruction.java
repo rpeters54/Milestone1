@@ -1,10 +1,13 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.Register;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
+import instructions.arm.MovArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class BitcastLLVMInstruction extends AbstractLLVMInstruction {
@@ -18,12 +21,12 @@ public class BitcastLLVMInstruction extends AbstractLLVMInstruction {
     @Override
     public String toString() {
         return String.format("%s = bitcast %s %s to %s",
-                getResult(), getSource(0).getTypeString(),
-                getSource(0), getResult().getTypeString());
+                getResult().llvmString(), getSource(0).getTypeString(),
+                getSource(0).llvmString(), getResult().getTypeString());
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        return new ArrayList<>();
+    public List<Instruction> toArm() {
+        return Collections.singletonList(new MovArmInstruction(getResult(),getSource(0)));
     }
 }

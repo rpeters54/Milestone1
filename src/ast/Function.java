@@ -156,6 +156,9 @@ public class Function implements Typed {
             returnBlock.addCode(ret);
         }
 
+        func.toArm();
+        func.registerAllocation();
+
         return func;
     }
 
@@ -203,7 +206,7 @@ public class Function implements Typed {
         } else {
             returnReg = Register.genTypedLocalRegister(retType.copy(), prologue.getLabel());
             returnPhi.setResult(returnReg);
-            returnPhi.setBoundName(returnReg.getName());
+            returnPhi.setBoundName(returnReg.toString());
             ReturnLLVMInstruction ret = new ReturnLLVMInstruction(retType, returnReg);
             // add return phi register -> instruction binding
             returnBlock.addCode(returnPhi);
@@ -213,10 +216,9 @@ public class Function implements Typed {
 
         // do basic transformations on the completed program
         // (aggressive dead code elim / constant prop and fold)
-        func.initTransformStructures();
         func.basicTransformations();
-
-
+        func.toArm();
+        func.registerAllocation();
 
         return func;
     }

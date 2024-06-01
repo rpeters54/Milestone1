@@ -16,6 +16,6 @@ public class CselArmInstruction extends AbstractArmInstruction {
 
     @Override
     public String toString() {
-        return String.format("CSEL %s, %s, %s, %s", getResult(), getSource(0), getSource(1), op);
+        return String.format("csel %s, %s, %s, %s", getResult(), getSource(0), getSource(1), op);
     }
 }

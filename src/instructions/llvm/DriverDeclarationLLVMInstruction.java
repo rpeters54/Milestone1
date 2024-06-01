@@ -1,10 +1,13 @@
 package instructions.llvm;
 
+import instructions.Instruction;
 import instructions.Label;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
+import instructions.arm.DriverDeclarationArmInstruction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +41,7 @@ public class DriverDeclarationLLVMInstruction extends AbstractLLVMInstruction {
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        throw new RuntimeException("Finish this code");
+    public List<Instruction> toArm() {
+        return Collections.singletonList(new DriverDeclarationArmInstruction());
     }
 }

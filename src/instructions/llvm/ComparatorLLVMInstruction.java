@@ -2,12 +2,14 @@ package instructions.llvm;
 
 import ast.expressions.BinaryExpression;
 import ast.types.BoolType;
+import instructions.Instruction;
 import instructions.Literal;
 import instructions.Register;
 import instructions.Source;
 import instructions.arm.ArmInstruction;
 import instructions.arm.CmpArmInstruction;
 import instructions.arm.CsetArmInstruction;
+import instructions.arm.MovArmInstruction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,8 +37,8 @@ public class ComparatorLLVMInstruction extends AbstractLLVMInstruction implement
         };
 
         // <result> = icmp <cond> <type> <operand1>, <operand2>
-        return String.format("%s = icmp %s %s %s, %s", getResult(),
-                opName, getSource(0).getTypeString(), getSource(0), getSource(1));
+        return String.format("%s = icmp %s %s %s, %s", getResult().llvmString(),
+                opName, getSource(0).getTypeString(), getSource(0).llvmString(), getSource(1).llvmString());
     }
 
 
@@ -66,9 +68,10 @@ public class ComparatorLLVMInstruction extends AbstractLLVMInstruction implement
     }
 
     @Override
-    public List<ArmInstruction> toArm() {
-        List<ArmInstruction> instList = new ArrayList<>();
-        instList.add(new CmpArmInstruction(getSource(0), getSource(1)));
+    public List<Instruction> toArm() {
+        List<Instruction> instList = new ArrayList<>();
+        Register leftReg = MovArmInstruction.optionalMov(getSource(0), instList);
+        instList.add(new CmpArmInstruction(leftReg, getSource(1)));
         instList.add(new CsetArmInstruction(getResult(), op));
         return instList;
     }

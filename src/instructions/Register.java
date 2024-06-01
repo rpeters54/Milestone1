@@ -4,10 +4,7 @@ import ast.types.NullType;
 import ast.types.Type;
 import instructions.llvm.TypeMap;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -16,7 +13,7 @@ public class Register implements Source {
     private String name;
     private Label label;
     private boolean isGlobal;
-    private boolean isMember;
+    private boolean isArm;
 
     private static int regCount = 0;
 
@@ -24,12 +21,12 @@ public class Register implements Source {
         regCount = 0;
     }
 
-    public Register(Type type, String name, Label label, boolean isGlobal, boolean isMember) {
+    public Register(Type type, String name, Label label, boolean isGlobal, boolean isArm) {
         this.type = type;
         this.name = name;
         this.label = label;
         this.isGlobal = isGlobal;
-        this.isMember = isMember;
+        this.isArm = isArm;
     }
 
     public static Register genLocalRegister(Label label) {
@@ -62,15 +59,6 @@ public class Register implements Source {
         );
     }
 
-    public static Register genMemberRegister(Type type, Label label) {
-        return new Register(
-                type,
-                "r"+regCount++,
-                label,
-                false,
-                true
-        );
-    }
 
     public static Register genArmRegister(int reg) {
         return new Register(
@@ -78,7 +66,17 @@ public class Register implements Source {
                 "x"+reg,
                 null,
                 false,
-                false
+                true
+        );
+    }
+
+    public static Register genStackPointer() {
+        return new Register(
+                null,
+                "sp",
+                null,
+                false,
+                true
         );
     }
 
@@ -96,7 +94,7 @@ public class Register implements Source {
     }
 
     public static List<Register> genArmArgRegisterList(int numArgs) {
-        List<Integer> regs = IntStream.rangeClosed(0, numArgs)
+        List<Integer> regs = IntStream.rangeClosed(0, numArgs-1)
                 .boxed().collect(Collectors.toList());
         if (regs.size() > 8)
             throw new RuntimeException("Compiler Can't handle function calls with greater than 8 arguments... Sorry");
@@ -116,10 +114,6 @@ public class Register implements Source {
         return label;
     }
 
-    public String getName() {
-        return name;
-    }
-
 
     @Override
     public void setLabel(Label label) {
@@ -133,15 +127,18 @@ public class Register implements Source {
 
     @Override
     public Source copy() {
-        return new Register(type, name, label, isGlobal, isMember);
+        return new Register(type, name, label, isGlobal, isArm);
+    }
+
+    public boolean isArm() {
+        return isArm;
     }
 
     public boolean isGlobal() {
         return isGlobal;
     }
 
-    @Override
-    public String toString() {
+    public String llvmString() {
         if (isGlobal) {
             return "@"+ name;
         } else {
@@ -150,12 +147,17 @@ public class Register implements Source {
     }
 
     @Override
+    public String toString() {
+        return name;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Register register = (Register) o;
         return isGlobal == register.isGlobal
-                && isMember == register.isMember
+                && isArm == register.isArm
                 && Objects.equals(label, register.label)
                 && Objects.equals(type, register.type)
                 && Objects.equals(name, register.name);
@@ -163,6 +165,6 @@ public class Register implements Source {
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type, label, isGlobal, isMember);
+        return Objects.hash(name, type, label, isGlobal, isArm);
     }
 }

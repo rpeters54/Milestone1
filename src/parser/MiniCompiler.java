@@ -50,7 +50,12 @@ public class MiniCompiler {
         if (parseObj.dotfile != null) {
             prog.toDotFile(parseObj.dotfile);
         }
-        prog.toLLFile(parseObj.llfile);
+        if (parseObj.llfile != null) {
+            prog.toLLFile(parseObj.llfile);
+        }
+        if (parseObj.armfile != null) {
+            prog.toArmFile(parseObj.armfile);
+        }
     }
 
     private static ParseObject parseParameters(String[] args) {
@@ -59,16 +64,31 @@ public class MiniCompiler {
 
         ParseObject parser = new ParseObject();
         parser.infile = args[0];
-        for (int i = 0; i < args.length-1; i++) {
+        for (int i = 0; i < args.length; i++) {
             switch(args[i]) {
-                case "-s" -> {
-                    switch (args[++i].toLowerCase(Locale.ROOT)) {
-                        case "ssa" -> parser.cfgType = Program.CFGType.SSA;
-                        case "stack" -> parser.cfgType = Program.CFGType.STACK;
+                case "-stack" -> parser.cfgType = Program.CFGType.STACK;
+                case "-ssa" -> parser.cfgType = Program.CFGType.SSA;
+                case "-dot" -> {
+                    if (i+1 < args.length && !args[i+1].startsWith("-")) {
+                        parser.dotfile = args[++i];
+                    } else {
+                        parser.dotfile = "a.dot";
                     }
                 }
-                case "-d" -> parser.dotfile = args[++i];
-                case "-l" -> parser.llfile = args[++i];
+                case "-llvm" -> {
+                    if (i+1 < args.length && !args[i+1].startsWith("-")) {
+                        parser.llfile = args[++i];
+                    } else {
+                        parser.llfile = "a.ll";
+                    }
+                }
+                case "-arm" -> {
+                    if (i+1 < args.length && !args[i+1].startsWith("-")) {
+                        parser.armfile = args[++i];
+                    } else {
+                        parser.armfile = "a.S";
+                    }
+                }
             }
         }
         return parser;
@@ -108,12 +128,14 @@ public class MiniCompiler {
         private String infile;
         private String llfile;
         private String dotfile;
+        private String armfile;
         private Program.CFGType cfgType;
 
         private ParseObject() {
             infile = null;
-            llfile = "out.ll";
+            llfile = null;
             dotfile = null;
+            armfile = null;
             cfgType = Program.CFGType.SSA;
         }
     }
