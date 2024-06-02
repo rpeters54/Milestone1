@@ -25,7 +25,12 @@ public class DestroyStackArmInstruction extends AbstractArmInstruction {
             offset -= 16;
             builder.append(String.format("ldp x%d, x%d, [sp, %d]\n", i-1, i, offset));
         }
-        builder.append(String.format("ldp x29, x30, [sp], %d", size));
+        if (size > IrFunction.cappedSize) {
+            builder.append(String.format("ldp x29, x30, [sp], %d\n", IrFunction.cappedSize));
+            builder.append(String.format("add sp, sp, %d\n", size-IrFunction.cappedSize));
+        } else {
+            builder.append(String.format("ldp x29, x30, [sp], %d\n", size));
+        }
         return builder.toString();
     }
 }

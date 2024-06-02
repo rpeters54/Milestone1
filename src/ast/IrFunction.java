@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 public class IrFunction {
     public static final int baseSize = 96;
+    public static final int cappedSize = 496;
 
     private final IrProgram parent;
     private final Function definition;
@@ -759,13 +760,14 @@ public class IrFunction {
                     throw new RuntimeException("IrFunction::toArm: Input should be unaltered list of LLVM code");
                 List<Instruction> armInst = ((LLVMInstruction) inst).toArm();
                 for (Instruction newInst : armInst) {
-                    for (Source source : newInst.getSources()) {
+                    for (int j = 0; j < newInst.getSources().size(); j++) {
+                        Source source = newInst.getSources().get(j);
                         if (source instanceof Literal) {
-                            ((Literal) source).toArm();
+                            newInst.getSources().set(j, ((Literal)source).toArm());
                         }
                     }
                 }
-                arm.getContents().addAll(((LLVMInstruction) inst).toArm());
+                arm.getContents().addAll(armInst);
 
             }
             llvmBlocks.add(llvm);
@@ -842,6 +844,22 @@ public class IrFunction {
                 int index = phi.getIndexByLabel(predecessor.getLabel());
                 Source source = phi.getSource(index);
                 movs.add(new MovArmInstruction(phi.getResult(), source));
+            }
+            boolean swap = true;
+            while (swap) {
+                swap = false;
+                for (int i = 0; i < movs.size(); i++) {
+                    for (int j = i + 1; j < movs.size(); j++) {
+                        MovArmInstruction early = movs.get(i);
+                        MovArmInstruction later = movs.get(j);
+                        if (later.getSources().contains(early.getResult())) {
+                            swap = true;
+                            movs.set(i, later);
+                            movs.set(j, early);
+                            break;
+                        }
+                    }
+                }
             }
             // otherwise just insert the move instruction before the branch
             Stack<Instruction> branchStack = new Stack<>();
@@ -927,9 +945,32 @@ public class IrFunction {
         for (int j = 0; j < oldAllocas.size(); j++) {
             substAllArmSources(oldAllocas.get(j), newAllocas.get(j));
         }
+
+        loadLargeImmediates(armQueue);
         updateStackSize(armQueue, stackSize);
     }
 
+    private void loadLargeImmediates(Deque<BasicBlock> blockQueue) {
+        for (BasicBlock block : blockQueue) {
+            int size = block.getContents().size();
+            for (int i = 0; i < size; i++) {
+                Instruction inst = block.getContents().poll();
+                for (int j = 0; j < inst.getSources().size(); j++) {
+                    Source source = inst.getSources().get(j);
+                    if (source instanceof Literal) {
+                        long value = Long.parseLong(source.toString());
+                        if (value >= 2048 || value <= -2048) {
+                            Register temp = Register.genLocalRegister(block.getLabel());
+                            block.addCode(new LoadLabelArmInstruction(temp, source.toString()));
+                            inst.getSources().set(j, temp);
+                        }
+                    }
+                }
+                block.addCode(inst);
+            }
+        }
+
+    }
 
     private void updateStackSize(Deque<BasicBlock> newQueue, int space) {
         Instruction first = newQueue.peek().getContents().peek();
@@ -947,29 +988,6 @@ public class IrFunction {
         destroy.setExtraSpace(space);
     }
 
-//    private void fixAllocaLoads(Register original, int loc, Queue<BasicBlock> blockQueue) {
-//        List<Register> originals = Arrays.asList(original);
-//        Map<Register, Integer> loadMap = new HashMap<>();
-//        loadMap.put(original, loc);
-//        for (BasicBlock block : blockQueue) {
-//            int size = block.getContents().size();
-//            for (int i = 0; i < size; i++) {
-//                Instruction inst = block.getContents().poll();
-//                if (inst instanceof BitcastLLVMInstruction && inst.getSources().contains(original)) {
-//                    originals.add(((Register)((BitcastLLVMInstruction)inst).getSource(0)));
-//                } else if (inst instanceof GetElemPtrLLVMInstruction) {
-//                    Source index = ((GetElemPtrLLVMInstruction) inst).getSource(1);
-//                    if (!(index instanceof Literal))
-//                        throw new RuntimeException("GetElemPtr index should be a literal");
-//                    int offset = 8 * Integer.parseInt(index.toString());
-//                    loadMap.put(inst.getResult(), offset+loc);
-//                } else if (inst instanceof LoadLLVMInstruction) {
-//
-//                }
-//
-//            }
-//        }
-//    }
 
 
     public void registerAllocation() {

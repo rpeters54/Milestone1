@@ -61,14 +61,17 @@ public class Literal implements Source {
         return value;
     }
 
-    public void toArm() {
-        if (type instanceof BoolType) {
-            switch(value) {
-                case "true", "1" -> value = "1";
-                case "false", "0" -> value = "0";
-                default -> throw new RuntimeException("Literal::toArm: Invalid boolean value");
-            }
-        }
+    public Literal toArm() {
+        String newValue = switch(value) {
+            case "true"  -> "1";
+            case "false", "null" -> "0";
+            default -> value;
+        };
+
+        Literal copy = (Literal) this.copy();
+        copy.setValue(newValue);
+
+        return copy;
     }
 
     @Override

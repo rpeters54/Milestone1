@@ -15,10 +15,10 @@ public class DriverDeclarationArmInstruction extends AbstractArmInstruction {
                 "    .asciz \"%ld\\n\"\n"+
                 ".global print\n"+
                 "print:\n" +
-                "    .asciz \"%ld\"\n"+
+                "    .asciz \"%ld \"\n"+
                 ".global read\n"+
                 "read:\n" +
-                "    .asciz \"%d\"\n"+
+                "    .asciz \"%ld\"\n"+
                 ".global read_scratch\n"+
                 "read_scratch:\n" +
                 "    .xword 0x0\n";

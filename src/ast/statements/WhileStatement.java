@@ -59,6 +59,7 @@ public class WhileStatement
 
       // evaluate the body blocks
       BasicBlock lastInner = body.toStackBlocks(inner, func);
+      lastInner.addChild(inner);
 
       // add the outermost block
       Label outerStub = new Label();

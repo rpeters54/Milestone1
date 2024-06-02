@@ -22,7 +22,7 @@ public class BinaryArmInstruction extends AbstractArmInstruction {
             case PLUS -> "add";
             case MINUS -> "sub";
             case AND -> "and";
-            case OR -> "or";
+            case OR -> "orr";
             case XOR -> "eor";
             default -> throw new IllegalArgumentException("Bad Binop Name");
         };
