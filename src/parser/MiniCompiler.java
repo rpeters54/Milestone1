@@ -38,7 +38,7 @@ public class MiniCompiler {
             program.validTypes();
         } catch (TypeException e) {
             e.printStackTrace();
-            exit(1);
+            error("Typecheck Fail");
         }
 
         // validate returns
@@ -46,6 +46,12 @@ public class MiniCompiler {
             error("Invalid Return Path");
         }
 
+        // avoid generating code if onlySemantics flag is set
+        if (parseObj.onlySemantics) {
+            exit(0);
+        }
+
+        // otherwise, generate code
         IrProgram prog = program.toCFG(parseObj.cfgType);
         if (parseObj.dotfile != null) {
             prog.toDotFile(parseObj.dotfile);
@@ -66,6 +72,7 @@ public class MiniCompiler {
         parser.infile = args[0];
         for (int i = 0; i < args.length; i++) {
             switch(args[i]) {
+                case "-validate" -> parser.onlySemantics = true;
                 case "-stack" -> parser.cfgType = Program.CFGType.STACK;
                 case "-ssa" -> parser.cfgType = Program.CFGType.SSA;
                 case "-dot" -> {
@@ -86,7 +93,7 @@ public class MiniCompiler {
                     if (i+1 < args.length && !args[i+1].startsWith("-")) {
                         parser.armfile = args[++i];
                     } else {
-                        parser.armfile = "a.S";
+                        parser.armfile = "a.s";
                     }
                 }
             }
@@ -102,8 +109,8 @@ public class MiniCompiler {
 
     private static void usage() {
         System.err.println(
-                "usage: <infile> [-s ssa/stack] [-d dotfile] [-l llfile]\n"
-                +"Default: Produces SSA LLVM file 'out.ll'"
+                "usage: <infile> [-validate] [-stack/-ssa] [-dot dot_file] [-llvm ll_file] [-arm arm_file] \n"
+                +"Default: Produces SSA LLVM and ARM file 'a.ll' and 'a.s'"
         );
         exit(-1);
     }
@@ -125,6 +132,7 @@ public class MiniCompiler {
     }
 
     private static class ParseObject {
+        private boolean onlySemantics;
         private String infile;
         private String llfile;
         private String dotfile;
@@ -132,6 +140,7 @@ public class MiniCompiler {
         private Program.CFGType cfgType;
 
         private ParseObject() {
+            onlySemantics = false;
             infile = null;
             llfile = null;
             dotfile = null;
