@@ -27,6 +27,10 @@ public class CallLLVMInstruction extends AbstractLLVMInstruction implements Crit
         this.function = function;
     }
 
+    public Function getFunction() {
+        return function;
+    }
+
     @Override
     public String toString() {
         String start;

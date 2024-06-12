@@ -43,7 +43,7 @@ public class MiniCompiler {
 
         // validate returns
         if (!program.validReturns()) {
-            error("Invalid Return Path");
+            error("Non-Void Function Contains a Path not Terminated by a Return");
         }
 
         // avoid generating code if onlySemantics flag is set
@@ -52,7 +52,7 @@ public class MiniCompiler {
         }
 
         // otherwise, generate code
-        IrProgram prog = program.toCFG(parseObj.cfgType);
+        IrProgram prog = program.toCFG(parseObj.cfgType, parseObj.transformations);
         if (parseObj.dotfile != null) {
             prog.toDotFile(parseObj.dotfile);
         }
@@ -73,6 +73,7 @@ public class MiniCompiler {
         for (int i = 0; i < args.length; i++) {
             switch(args[i]) {
                 case "-validate" -> parser.onlySemantics = true;
+                case "-notrans" -> parser.transformations = false;
                 case "-stack" -> parser.cfgType = Program.CFGType.STACK;
                 case "-ssa" -> parser.cfgType = Program.CFGType.SSA;
                 case "-dot" -> {
@@ -109,8 +110,7 @@ public class MiniCompiler {
 
     private static void usage() {
         System.err.println(
-                "usage: <infile> [-validate] [-stack/-ssa] [-dot dot_file] [-llvm ll_file] [-arm arm_file] \n"
-                +"Default: Produces SSA LLVM and ARM file 'a.ll' and 'a.s'"
+                "usage: <infile> [-validate] [-notrans] [-stack/-ssa] [-dot dot_file] [-llvm ll_file] [-arm arm_file] \n"
         );
         exit(-1);
     }
@@ -133,6 +133,7 @@ public class MiniCompiler {
 
     private static class ParseObject {
         private boolean onlySemantics;
+        private boolean transformations;
         private String infile;
         private String llfile;
         private String dotfile;
@@ -141,6 +142,7 @@ public class MiniCompiler {
 
         private ParseObject() {
             onlySemantics = false;
+            transformations = true;
             infile = null;
             llfile = null;
             dotfile = null;

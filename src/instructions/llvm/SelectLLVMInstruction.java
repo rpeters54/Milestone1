@@ -37,9 +37,11 @@ public class SelectLLVMInstruction extends AbstractLLVMInstruction {
     public List<Instruction> toArm() {
         List<Instruction> instList = new ArrayList<>();
         Register leftReg = MovArmInstruction.optionalMov(getSource(0), instList);
+        Register leftOp = MovArmInstruction.optionalMov(getSource(1), instList);
+        Register rightOp = MovArmInstruction.optionalMov(getSource(2), instList);
         instList.add(new CmpArmInstruction(leftReg,
                 new Literal(new IntType(), "0", getSource(0).getLabel())));
-        instList.add(new CselArmInstruction(getResult(), getSource(1), getSource(2), "ne"));
+        instList.add(new CselArmInstruction(getResult(), leftOp, rightOp, "ne"));
         return instList;
     }
 }

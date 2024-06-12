@@ -84,6 +84,12 @@ public class Function implements Typed {
     public static BasicBlock returnBlock;
 
 
+    /**
+     * Generates a CFG for the function in STACK form
+     * No optimizations, (it's going to be slow)
+     * @param prog The program object being updated
+     * @return A object containing the CFGs in LLVM and ARM as well as some metadata
+     */
     public IrFunction toStackCFG(IrProgram prog) {
         IrFunction func = new IrFunction(prog, this);
         BasicBlock prologue = func.getBody();
@@ -163,7 +169,13 @@ public class Function implements Typed {
     }
 
 
-    public IrFunction toSSACFG(IrProgram prog) {
+    /**
+     * Generates a CFG for the function in SSA form
+     * Optimizations are enabled by default
+     * @param prog The program object being updated
+     * @return A object containing the CFGs in LLVM and ARM as well as some other metadata
+     */
+    public IrFunction toSSACFG(IrProgram prog, boolean transformations) {
         IrFunction func = new IrFunction(prog, this);
         BasicBlock prologue = func.getBody();
         prologue.setLabel(new Label("prologue"));
@@ -216,7 +228,9 @@ public class Function implements Typed {
 
         // do basic transformations on the completed program
         // (aggressive dead code elim / constant prop and fold)
-        func.basicTransformations();
+        func.phiCleanup();
+        if (transformations)
+            func.runTransformations();
         func.toArm();
         func.registerAllocation();
 

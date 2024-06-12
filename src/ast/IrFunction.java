@@ -18,14 +18,23 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class IrFunction {
+    // definitions for the base and maximum stack size
     public static final int baseSize = 96;
     public static final int cappedSize = 496;
 
+    // reference to parent
     private final IrProgram parent;
+    // function definition associated with the object
     private final Function definition;
-    private final Map<String, Register> localBindings;   //local symbol table
+
+    // local symbol table (only used by stack llvm)
+    private final Map<String, Register> localBindings;
+
+    // queue of llvm basic blocks
     private final Deque<BasicBlock> preorderQueue;
-    private Deque<BasicBlock> armQueue;
+    // queue of arm basic blocks
+    private final Deque<BasicBlock> armQueue;
+    // variable that tracks the size of the function's stack
     private int stackSize;
 
 
@@ -39,6 +48,7 @@ public class IrFunction {
         this.armQueue = new ArrayDeque<>();
         this.stackSize = baseSize;
     }
+
 
     public Register lookupReg(String s) {
         Register reg = localBindings.get(s);
@@ -159,17 +169,62 @@ public class IrFunction {
     }
 
 
-    public void basicTransformations() {
-        bubblePhisToTop();
+    /**
+     * Runs a simple phi clean up
+     */
+    public void phiCleanup() {
         boolean check = true;
+        bubblePhisToTop();
+        while (check) {
+            check = removeRedundantPhis();
+        }
+        bubblePhisToTop();
+    }
+
+
+    /**
+     * Run passes over the LLVM code to improve code efficiency
+     * - removes unnecessary phi instructions
+     * - folds and propagates constant values
+     * - removes unnecessary code and control flow
+     * - inserts predicate instructions if inserting them reduces control flow
+     */
+    public void runTransformations() {
+        boolean check = true;
+        bubblePhisToTop();
         while (check) {
             check = removeRedundantPhis();
             check |= constantPropAndFold();
             check |= deadCode();
-            //check |= selectTransform();
+            check |= selectTransform();
+            //check |= tailCallTransform();
         }
         bubblePhisToTop();
     }
+
+
+    /**
+     * Move all phis in a basic block to the top
+     */
+    public void bubblePhisToTop() {
+        for (BasicBlock block : getPreorderQueue()) {
+            Queue<Instruction> code = block.getContents();
+            Queue<Instruction> buffer = new ArrayDeque<>();
+            int size = code.size();
+            for (int i = 0; i < size; i++) {
+                Instruction inst = code.poll();
+                if (inst instanceof PhiLLVMInstruction) {
+                    code.add(inst);
+                } else {
+                    buffer.add(inst);
+                }
+            }
+            while(!buffer.isEmpty()) {
+                code.add(buffer.poll());
+            }
+        }
+    }
+
 
     /**
      * Cleans up any phis with >1 operand from the same location
@@ -196,8 +251,6 @@ public class IrFunction {
                     continue;
                 }
                 check = true;
-//                // remove the phi's result from the set of critical registers
-//                dropCriticalRegister(phi.getResult());
                 // redundant phis will always have a single source (at least in my implementation)
                 // replace the phi with its only source
                 substAllLLVMSources(phi.getResult(), phi.getSource(0));
@@ -245,7 +298,7 @@ public class IrFunction {
     }
 
 
-    /*
+    /**
      * removes unreachable/unimportant code and control flow
      */
     private boolean deadCode() {
@@ -533,29 +586,6 @@ public class IrFunction {
         return check;
     }
 
-
-    /**
-     * Move all phis in a basic block to the top
-     */
-    private void bubblePhisToTop() {
-        for (BasicBlock block : getPreorderQueue()) {
-            Queue<Instruction> code = block.getContents();
-            Queue<Instruction> buffer = new ArrayDeque<>();
-            int size = code.size();
-            for (int i = 0; i < size; i++) {
-                Instruction inst = code.poll();
-                if (inst instanceof PhiLLVMInstruction) {
-                    code.add(inst);
-                } else {
-                    buffer.add(inst);
-                }
-            }
-            while(!buffer.isEmpty()) {
-                code.add(buffer.poll());
-            }
-        }
-    }
-
     /**
      * reduce unnecessary control flow with predicate instructions
      */
@@ -614,6 +644,7 @@ public class IrFunction {
 
             // fix the branches
             parent.addCode(new UnconditionalBranchLLVMInstruction(child.getLabel()));
+            //parent.addChild(child);
             parent.getChildren().remove(block);
             child.getParents().remove(block);
             block.getParents().clear();
@@ -628,6 +659,174 @@ public class IrFunction {
         return check;
     }
 
+
+//    public boolean tailCallTransform() {
+//        boolean transformed = false;
+//        boolean canTransform = true;
+//        // populate a queue with all blocks that contain branches to the epilogue block
+//        // and the epilogue block itself
+//        for (BasicBlock block : preorderQueue) {
+//            int size = block.getContents().size();
+//            for (int i = 0; i < size; i++) {
+//                Instruction code = block.getContents().poll();
+//                if (code instanceof CallLLVMInstruction && ((CallLLVMInstruction) code).getFunction()
+//                        .getName().equals(definition.getName())) {
+//                    Instruction next = block.getContents().peek();
+//                    if (next instanceof UnconditionalBranchLLVMInstruction) {
+//                        UnconditionalBranchLLVMInstruction branch = (UnconditionalBranchLLVMInstruction) next;
+//                        if (!branch.getStub().equals(preorderQueue.peekLast().getLabel())) {
+//                            canTransform = false;
+//                        }
+//                    } else {
+//                        canTransform = false;
+//                    }
+//                }
+//                block.getContents().add(code);
+//            }
+//        }
+//
+//        if (!canTransform) {
+//            return false;
+//        }
+//
+//        BasicBlock epilogue = preorderQueue.peekLast();
+//        PhiLLVMInstruction returnPhi = findReturnPhi(epilogue);
+//
+//        Label tailLabel = new Label("tail");
+//        BasicBlock dummyBlock = new BasicBlock();
+//        dummyBlock.setLabel(tailLabel);
+//
+//
+//        List<CallLLVMInstruction> calls = new ArrayList<>();
+//        List<Label> callLabels = new ArrayList<>();
+//        for (BasicBlock block : preorderQueue) {
+//            int size = block.getContents().size();
+//            for (int i = 0; i < size; i++) {
+//                Instruction code = block.getContents().poll();
+//                if (code instanceof CallLLVMInstruction && ((CallLLVMInstruction) code).getFunction()
+//                        .getName().equals(definition.getName())) {
+//                    transformed = true;
+//                    // remove the unconditional branch
+//                    block.getContents().poll();
+//                    // add the new branch to the tail
+//                    block.addCode(new UnconditionalBranchLLVMInstruction(tailLabel));
+//                    size--;
+//                    block.getChildren().remove(epilogue);
+//                    epilogue.getParents().remove(block);
+//                    block.addChild(dummyBlock);
+//                    calls.add((CallLLVMInstruction) code);
+//                    callLabels.add(block.getLabel());
+//
+//                    if (returnPhi != null) {
+//                        int index = returnPhi.getIndexByLabel(block.getLabel());
+//                        returnPhi.getSources().remove(index);
+//                        returnPhi.getMemberLabels().remove(index);
+//                    }
+//                } else {
+//                    block.addCode(code);
+//                }
+//            }
+//        }
+//
+//        if (!transformed) {
+//            return false;
+//        }
+//
+//        BasicBlock prologue = preorderQueue.poll();
+//        List<Register> args = findArgs();
+//        List<PhiLLVMInstruction> phis = new ArrayList<>();
+//        for (int i = 0; i < args.size(); i++) {
+//            List<PhiTuple> phiElements = new ArrayList<>();
+//            Register result = Register.genTypedLocalRegister(args.get(i).getType().copy(), tailLabel);
+//            substAllLLVMSources(args.get(i), result);
+//            phiElements.add(new PhiTuple(args.get(i), prologue.getLabel()));
+//            int j = 0;
+//            for (CallLLVMInstruction call : calls) {
+//                phiElements.add(new PhiTuple(call.getSource(i), callLabels.get(j)));
+//                j++;
+//            }
+//            phis.add(new PhiLLVMInstruction(definition.getParams().get(i).getName(), result, phiElements));
+//        }
+//
+//        dummyBlock.getContents().addAll(phis);
+//        dummyBlock.getContents().addAll(prologue.getContents());
+//        prologue.getContents().clear();
+//        prologue.addCode(new UnconditionalBranchLLVMInstruction(tailLabel));
+//        for (BasicBlock child : prologue.getChildren()) {
+//            dummyBlock.getChildren().add(child);
+//            child.getParents().remove(prologue);
+//            child.getParents().add(dummyBlock);
+//            for (Instruction code : child.getContents()) {
+//                code.substituteLabel(prologue.getLabel(), tailLabel);
+//            }
+//        }
+//        prologue.getChildren().clear();
+//        prologue.getChildren().add(dummyBlock);
+//        dummyBlock.getParents().add(prologue);
+//
+//        preorderQueue.addFirst(dummyBlock);
+//        preorderQueue.addFirst(prologue);
+//
+//        return true;
+//    }
+//
+//    public List<Register> findArgs() {
+//        List<Register> args = new ArrayList<>();
+//        for (int i = 0; i < definition.getParams().size(); i++) {
+//            boolean found = false;
+//            String name = "r"+i;
+//            for (BasicBlock block : preorderQueue) {
+//                for (Instruction code : block.getContents()) {
+//                    for (Source source : code.getSources()) {
+//                        if (source instanceof Register && source.toString().equals(name)) {
+//                            args.add((Register) source);
+//                            found = true;
+//                            break;
+//                        }
+//                    }
+//                    if (found)
+//                        break;
+//                }
+//                if (found)
+//                    break;
+//            }
+//        }
+//        if (args.size() < definition.getParams().size()) {
+//            throw new RuntimeException("findArgs: didn't find all args");
+//        }
+//        return args;
+//    }
+//
+//    public PhiLLVMInstruction findReturnPhi(BasicBlock epilogue) {
+//        Instruction returnInst = epilogue.getContents().peekLast();
+//        if (!(returnInst instanceof ReturnLLVMInstruction))
+//            return null;
+//
+//        ReturnLLVMInstruction returnInstruction = (ReturnLLVMInstruction) returnInst;
+//        Source retval = returnInstruction.getSource(0);
+//
+//        if (!(retval instanceof Register))
+//            return null;
+//
+//        Register retReg = (Register) retval;
+//        for (Instruction code : epilogue.getContents()) {
+//            if (code.getResult() != null && code.getResult().equals(retReg)) {
+//                if (code instanceof PhiLLVMInstruction) {
+//                    return (PhiLLVMInstruction) code;
+//                } else {
+//                    return null;
+//                }
+//            }
+//        }
+//        return null;
+//    }
+
+
+/*
+========================================================================================================================
+    Source and Label Substitution Functions
+========================================================================================================================
+ */
 
 
     /**
@@ -683,198 +882,18 @@ public class IrFunction {
     }
 
 
-    private void copyBlocks(Deque<BasicBlock> base, Deque<BasicBlock> copy) {
-        // generate all basic blocks
-        copy.clear();
-        for (BasicBlock block : base) {
-            BasicBlock armBlock = new BasicBlock();
-            Label armLabel = new Label(definition.getName() + "_" + block.getLabel().getName());
-            armBlock.setLabel(armLabel);
-            copy.add(armBlock);
-        }
-    }
+/*
+========================================================================================================================
+    Arm Code Generation Functions
+========================================================================================================================
+ */
 
 
-    private void copyEdges(Deque<BasicBlock> base, Deque<BasicBlock> copy) {
-        int size = base.size();
-        for (int i = 0; i < size; i++) {
-            BasicBlock llvm = base.peek();
-            BasicBlock arm = copy.peek();
-            for (int j = 0; j < size; j++) {
-                BasicBlock llvmTemp = base.peek();
-                BasicBlock armTemp = copy.peek();
-                if (llvm.getChildren().contains(llvmTemp)) {
-                    arm.addChild(armTemp);
-                }
-                base.poll();
-                copy.poll();
-                base.add(llvmTemp);
-                copy.add(armTemp);
-            }
-            base.poll();
-            copy.poll();
-            base.add(llvm);
-            copy.add(arm);
-        }
-    }
-
-    private void addArgMoves(BasicBlock prologue) {
-        for (int i = 0; i < definition.getParams().size(); i++) {
-            String regname = "r"+i;
-            Register argreg = null;
-            boolean found = false;
-            for (BasicBlock block : preorderQueue) {
-                if (found)
-                    break;
-                for (Instruction inst : block.getContents()) {
-                    if (found)
-                        break;
-                    for (Register result : inst.getResults()) {
-                        if (result != null && regname.equals(result.toString())) {
-                            argreg = result;
-                            found = true;
-                            break;
-                        }
-                    }
-                    for (Source source : inst.getSources()) {
-                        if (source != null && source instanceof Register && regname.equals(source.toString())) {
-                            argreg = (Register) source;
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (found)
-                prologue.addCode(new MovArmInstruction(argreg, Register.genArmRegister(i)));
-        }
-    }
-
-
-    private void translateInstructions(Deque<BasicBlock> llvmBlocks, Deque<BasicBlock> armBlocks) {
-        for (int i = 0; i < llvmBlocks.size(); i++) {
-            BasicBlock llvm = llvmBlocks.poll();
-            BasicBlock arm = armBlocks.poll();
-            for (Instruction inst : llvm.getContents()) {
-                if (!(inst instanceof LLVMInstruction))
-                    throw new RuntimeException("IrFunction::toArm: Input should be unaltered list of LLVM code");
-                List<Instruction> armInst = ((LLVMInstruction) inst).toArm();
-                for (Instruction newInst : armInst) {
-                    for (int j = 0; j < newInst.getSources().size(); j++) {
-                        Source source = newInst.getSources().get(j);
-                        if (source instanceof Literal) {
-                            newInst.getSources().set(j, ((Literal)source).toArm());
-                        }
-                    }
-                }
-                arm.getContents().addAll(armInst);
-
-            }
-            llvmBlocks.add(llvm);
-            armBlocks.add(arm);
-        }
-    }
-
-
-    private void translateLabels(Deque<BasicBlock> oldQueue, Deque<BasicBlock> newQueue) {
-        // keep track of old and new labels
-        List<Label> oldLabels = new ArrayList<>();
-        List<Label> newLabels = new ArrayList<>();
-        for (int i = 0; i < oldQueue.size(); i++) {
-            BasicBlock llvm = oldQueue.poll();
-            BasicBlock arm = newQueue.poll();
-            oldLabels.add(llvm.getLabel());
-            newLabels.add(arm.getLabel());
-            oldQueue.add(llvm);
-            newQueue.add(arm);
-        }
-
-        for (BasicBlock newBlock : newQueue) {
-            for (Instruction inst : newBlock.getContents()) {
-                for (int k = 0; k < oldLabels.size(); k++) {
-                    inst.substituteLabel(oldLabels.get(k), newLabels.get(k));
-                }
-            }
-        }
-    }
-
-
-    private void addIntermediateBlock(BasicBlock arm, BasicBlock llvm,
-                                      List<PhiLLVMInstruction> phis, Deque<BasicBlock> blockQueue) {
-        BasicBlock paradox = arm.paradox();
-        if (paradox != null) {
-            // generate a new intermediate block between the block and its parent
-            BasicBlock intermediate = new BasicBlock();
-            Label intermediateLabel = new Label("inter_" + arm.getLabel().getName());
-            intermediate.setLabel(intermediateLabel);
-            intermediate.addCode(new UnconditionalBranchArmInstruction(arm.getLabel()));
-            // update phi labels
-            for (PhiLLVMInstruction phi : phis) {
-                Label oldLabel = paradox.getLabel();
-                int index = phi.getIndexByLabel(oldLabel);
-                phi.setMemberLabel(index, intermediateLabel);
-            }
-            // break the edge between the block and its parent
-            arm.getParents().remove(paradox);
-            paradox.getChildren().remove(arm);
-            Instruction unconditional = paradox.getContents().removeLast();
-            if (!(unconditional instanceof UnconditionalBranchArmInstruction))
-                throw new RuntimeException("block should end with unconditional");
-            Instruction conditional = paradox.getContents().removeLast();
-            if (!(conditional instanceof ConditionalBranchArmInstruction))
-                throw new RuntimeException("second to last instruction should be conditional");
-            UnconditionalBranchArmInstruction uncond = (UnconditionalBranchArmInstruction) unconditional;
-            ConditionalBranchArmInstruction cond = (ConditionalBranchArmInstruction) conditional;
-            if (uncond.getDestination() == arm.getLabel())
-                uncond.setDestination(intermediateLabel);
-            if (cond.getDestination() == arm.getLabel())
-                cond.setDestination(intermediateLabel);
-            paradox.addCode(cond);
-            paradox.addCode(uncond);
-            // insert the intermediate block
-            paradox.addChild(intermediate);
-            intermediate.addChild(arm);
-            blockQueue.add(intermediate);
-        }
-
-        // add all the moves
-        for (BasicBlock predecessor : arm.getParents()) {
-            List<MovArmInstruction> movs = new ArrayList<>();
-            for (PhiLLVMInstruction phi : phis) {
-                int index = phi.getIndexByLabel(predecessor.getLabel());
-                Source source = phi.getSource(index);
-                movs.add(new MovArmInstruction(phi.getResult(), source));
-            }
-            boolean swap = true;
-            while (swap) {
-                swap = false;
-                for (int i = 0; i < movs.size(); i++) {
-                    for (int j = i + 1; j < movs.size(); j++) {
-                        MovArmInstruction early = movs.get(i);
-                        MovArmInstruction later = movs.get(j);
-                        if (later.getSources().contains(early.getResult())) {
-                            swap = true;
-                            movs.set(i, later);
-                            movs.set(j, early);
-                            break;
-                        }
-                    }
-                }
-            }
-            // otherwise just insert the move instruction before the branch
-            Stack<Instruction> branchStack = new Stack<>();
-            while (predecessor.getContents().peekLast() instanceof UnconditionalBranchArmInstruction
-                    || predecessor.getContents().peekLast() instanceof ConditionalBranchArmInstruction) {
-                branchStack.push(predecessor.getContents().removeLast());
-            }
-            predecessor.getContents().addAll(movs);
-            while(!branchStack.isEmpty()) {
-                predecessor.addCode(branchStack.pop());
-            }
-        }
-    }
-
-
+    /**
+     * Transforms the LLVM representation of a program into pseudo-ARM
+     * (Registers are not yet allocated)
+     * The resulting set of code blocks are placed into the armQueue instance variable
+     */
     void toArm() {
         // generate all basic blocks
         copyBlocks(preorderQueue, armQueue);
@@ -933,8 +952,8 @@ public class IrFunction {
                     arm.getContents().add(inst);
                 }
             }
-            if (phis.size() > 0) {
-                addIntermediateBlock(arm, llvm, phis, armQueue);
+            if (!phis.isEmpty()) {
+                addIntermediateBlock(arm, phis, armQueue);
             }
 
             preorderQueue.poll();
@@ -950,6 +969,234 @@ public class IrFunction {
         updateStackSize(armQueue, stackSize);
     }
 
+
+    /**
+     * Copy all blocks from the "base" into "copy", updating the labels to include the function name
+     * @param base the source queue of basic blocks
+     * @param copy the output queue of basic blocks
+     */
+    private void copyBlocks(Deque<BasicBlock> base, Deque<BasicBlock> copy) {
+        // generate all basic blocks
+        copy.clear();
+        for (BasicBlock block : base) {
+            BasicBlock armBlock = new BasicBlock();
+            Label armLabel = new Label(definition.getName() + "_" + block.getLabel().getName());
+            armBlock.setLabel(armLabel);
+            copy.add(armBlock);
+        }
+    }
+
+
+    /**
+     * Copy all edges from the "base" into "copy"
+     * @param base the source queue of basic blocks
+     * @param copy the output queue of basic blocks
+     */
+    private void copyEdges(Deque<BasicBlock> base, Deque<BasicBlock> copy) {
+        int size = base.size();
+        for (int i = 0; i < size; i++) {
+            BasicBlock llvm = base.peek();
+            BasicBlock arm = copy.peek();
+            for (int j = 0; j < size; j++) {
+                BasicBlock llvmTemp = base.peek();
+                BasicBlock armTemp = copy.peek();
+                if (llvm.getChildren().contains(llvmTemp)) {
+                    arm.addChild(armTemp);
+                }
+                base.poll();
+                copy.poll();
+                base.add(llvmTemp);
+                copy.add(armTemp);
+            }
+            base.poll();
+            copy.poll();
+            base.add(llvm);
+            copy.add(arm);
+        }
+    }
+
+    private void addArgMoves(BasicBlock prologue) {
+        for (int i = 0; i < definition.getParams().size(); i++) {
+            String regname = "r"+i;
+            Register argreg = null;
+            boolean found = false;
+            for (BasicBlock block : preorderQueue) {
+                if (found)
+                    break;
+                for (Instruction inst : block.getContents()) {
+                    if (found)
+                        break;
+                    for (Register result : inst.getResults()) {
+                        if (result != null && regname.equals(result.toString())) {
+                            argreg = result;
+                            found = true;
+                            break;
+                        }
+                    }
+                    for (Source source : inst.getSources()) {
+                        if (source != null && source instanceof Register && regname.equals(source.toString())) {
+                            argreg = (Register) source;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (found)
+                prologue.addCode(new MovArmInstruction(argreg, Register.genArmRegister(i)));
+        }
+    }
+
+
+    /**
+     * For each llvm instruction in an llvm block, translate it into arm instructions and add the
+     * result to the corresponding block in the arm queue
+     * @param llvmBlocks the source queue of blocks containing llvm instructions
+     * @param armBlocks the output queue of blocks (should be empty)
+     */
+    private void translateInstructions(Deque<BasicBlock> llvmBlocks, Deque<BasicBlock> armBlocks) {
+        for (int i = 0; i < llvmBlocks.size(); i++) {
+            BasicBlock llvm = llvmBlocks.poll();
+            BasicBlock arm = armBlocks.poll();
+            for (Instruction inst : llvm.getContents()) {
+                if (!(inst instanceof LLVMInstruction))
+                    throw new RuntimeException("IrFunction::toArm: Input should be unaltered list of LLVM code");
+                List<Instruction> armInst = ((LLVMInstruction) inst).toArm();
+                for (Instruction newInst : armInst) {
+                    for (int j = 0; j < newInst.getSources().size(); j++) {
+                        Source source = newInst.getSources().get(j);
+                        if (source instanceof Literal) {
+                            newInst.getSources().set(j, ((Literal)source).toArm());
+                        }
+                    }
+                }
+                arm.getContents().addAll(armInst);
+
+            }
+            llvmBlocks.add(llvm);
+            armBlocks.add(arm);
+        }
+    }
+
+
+    /**
+     * For each instruction in the newQueue, translate the labels so they match the conventions of the new queue
+     * @param oldQueue
+     * @param newQueue
+     */
+    private void translateLabels(Deque<BasicBlock> oldQueue, Deque<BasicBlock> newQueue) {
+        // keep track of old and new labels
+        List<Label> oldLabels = new ArrayList<>();
+        List<Label> newLabels = new ArrayList<>();
+        for (int i = 0; i < oldQueue.size(); i++) {
+            BasicBlock llvm = oldQueue.poll();
+            BasicBlock arm = newQueue.poll();
+            oldLabels.add(llvm.getLabel());
+            newLabels.add(arm.getLabel());
+            oldQueue.add(llvm);
+            newQueue.add(arm);
+        }
+
+        for (BasicBlock newBlock : newQueue) {
+            for (Instruction inst : newBlock.getContents()) {
+                for (int k = 0; k < oldLabels.size(); k++) {
+                    inst.substituteLabel(oldLabels.get(k), newLabels.get(k));
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Breaks the backedge of loops and inserts a new basic blocks containing explicit move instructions
+     * If the block has no backedge, the moves are inserted at the end of the block before any branches
+     * This is required for the phi values to properly translate into ARM
+     * @param arm Basic Block containing arm instructions
+     * @param phis List of phi instructions contained within the block
+     * @param blockQueue The list of arm basic blocks where the intermediate block may be added
+     */
+    private void addIntermediateBlock(BasicBlock arm, List<PhiLLVMInstruction> phis, Deque<BasicBlock> blockQueue) {
+        BasicBlock paradox = arm.paradox();
+        if (paradox != null) {
+            // generate a new intermediate block between the block and its parent
+            BasicBlock intermediate = new BasicBlock();
+            Label intermediateLabel = new Label("inter_" + arm.getLabel().getName());
+            intermediate.setLabel(intermediateLabel);
+            intermediate.addCode(new UnconditionalBranchArmInstruction(arm.getLabel()));
+            // update phi labels
+            for (PhiLLVMInstruction phi : phis) {
+                Label oldLabel = paradox.getLabel();
+                int index = phi.getIndexByLabel(oldLabel);
+                phi.setMemberLabel(index, intermediateLabel);
+            }
+            // break the edge between the block and its parent
+            arm.getParents().remove(paradox);
+            paradox.getChildren().remove(arm);
+            Instruction unconditional = paradox.getContents().removeLast();
+            if (!(unconditional instanceof UnconditionalBranchArmInstruction))
+                throw new RuntimeException("block should end with unconditional");
+            Instruction conditional = paradox.getContents().removeLast();
+            if (!(conditional instanceof ConditionalBranchArmInstruction))
+                throw new RuntimeException("second to last instruction should be conditional");
+            UnconditionalBranchArmInstruction uncond = (UnconditionalBranchArmInstruction) unconditional;
+            ConditionalBranchArmInstruction cond = (ConditionalBranchArmInstruction) conditional;
+            if (uncond.getDestination() == arm.getLabel())
+                uncond.setDestination(intermediateLabel);
+            if (cond.getDestination() == arm.getLabel())
+                cond.setDestination(intermediateLabel);
+            paradox.addCode(cond);
+            paradox.addCode(uncond);
+            // insert the intermediate block
+            paradox.addChild(intermediate);
+            intermediate.addChild(arm);
+            blockQueue.add(intermediate);
+        }
+
+        // add all the moves
+        for (BasicBlock predecessor : arm.getParents()) {
+            List<MovArmInstruction> movs = new ArrayList<>();
+            for (PhiLLVMInstruction phi : phis) {
+                int index = phi.getIndexByLabel(predecessor.getLabel());
+                Source source = phi.getSource(index);
+                movs.add(new MovArmInstruction(phi.getResult(), source));
+            }
+
+            // add temp space if moves conflict
+            List<MovArmInstruction> swaps = new ArrayList<>();
+            for (int i = 0; i < movs.size(); i++) {
+                for (int j = i + 1; j < movs.size(); j++) {
+                    MovArmInstruction early = movs.get(i);
+                    MovArmInstruction later = movs.get(j);
+                    if (later.getSources().contains(early.getResult())) {
+                        Register temp = Register.genLocalRegister(arm.getLabel());
+                        swaps.add(new MovArmInstruction(temp, early.getResult()));
+                        later.setSources(Arrays.asList(temp));
+                    }
+                }
+            }
+            swaps.addAll(movs);
+            movs = swaps;
+
+            // otherwise just insert the move instruction before the branch
+            Stack<Instruction> branchStack = new Stack<>();
+            while (predecessor.getContents().peekLast() instanceof UnconditionalBranchArmInstruction
+                    || predecessor.getContents().peekLast() instanceof ConditionalBranchArmInstruction) {
+                branchStack.push(predecessor.getContents().removeLast());
+            }
+            predecessor.getContents().addAll(movs);
+            while(!branchStack.isEmpty()) {
+                predecessor.addCode(branchStack.pop());
+            }
+        }
+    }
+
+
+    /**
+     * Replaces move instructions where the immediates are greater than the maximum allowed by ARM
+     * with load instructions. (I know there are better ways to do this,
+     * but faster generated code = bigger pain in the ass)
+     * @param blockQueue queue of basic blocks containing arm instructions
+     */
     private void loadLargeImmediates(Deque<BasicBlock> blockQueue) {
         for (BasicBlock block : blockQueue) {
             int size = block.getContents().size();
@@ -972,6 +1219,12 @@ public class IrFunction {
 
     }
 
+    /**
+     * Updates the stack size so that it has space for any allocated/spilled values
+     * Pads the stack size so that it is divisible by 16 (arm convention)
+     * @param newQueue queue of basic blocks containing arm instructions
+     * @param space the new size of the stack
+     */
     private void updateStackSize(Deque<BasicBlock> newQueue, int space) {
         Instruction first = newQueue.peek().getContents().peek();
         Instruction returnInst = newQueue.peekLast().getContents().removeLast();
@@ -989,9 +1242,20 @@ public class IrFunction {
     }
 
 
+/*
+========================================================================================================================
+    Register Allocation Functions
+========================================================================================================================
+ */
 
+
+    /**
+     * Converts the pseudo-ARM assembly with an infinite register space into
+     * runnable ARM by allocating registers
+     * Note: Must call toArm() before this function can be run
+     */
     public void registerAllocation() {
-        if (armQueue.size() == 0)
+        if (armQueue.isEmpty())
             throw new RuntimeException("registerAllocation: must call toArm() before attempting to register allocate");
         Map<BasicBlock, Set<Register>> livevalues = liveRanges(armQueue);
         Graph<Register> interferenceGraph = buildInterferenceGraph(livevalues, armQueue);
@@ -1001,6 +1265,12 @@ public class IrFunction {
         updateRegisters(colorMap, spillAddresses);
     }
 
+
+    /**
+     * Computes what variables are live leaving a block
+     * @param blockQueue The queue of basic blocks being analyzed
+     * @return A map of sets associating basic blocks to the set of their live out variables
+     */
     public Map<BasicBlock, Set<Register>> liveRanges(Deque<BasicBlock> blockQueue) {
         boolean changed = true;
         Map<BasicBlock, Set<Register>> liveOutMap = new HashMap<>();
@@ -1021,6 +1291,14 @@ public class IrFunction {
         return liveOutMap;
     }
 
+
+    /**
+     * Constructs an interference graph tracking which registers are live at the same time
+     * @param livevalues A map of sets associating basic blocks to the set of their live out variables
+     * @param blockQueue The queue of basic blocks being analyzed
+     * @return A graph where each register is a vertex and each interference between two registers is an edge between
+     * their two vertices
+     */
     public Graph<Register> buildInterferenceGraph(Map<BasicBlock, Set<Register>> livevalues, Queue<BasicBlock> blockQueue) {
         Graph<Register> interferenceGraph = new Graph<>();
         for (BasicBlock block : blockQueue) {
@@ -1050,6 +1328,16 @@ public class IrFunction {
         return interferenceGraph;
     }
 
+
+    /**
+     * Using the greedy approximation for graph coloring, finds a mapping from pseudo-ARM to real
+     * ARM registers where two interfering pseudo-registers can not be mapped to the same real register
+     *
+     * For registers that can not be mapped, they are marked null in the output map and handled later
+     * @param interferenceGraph A graph where each register is a vertex and each interference between
+     *                          two registers is an edge between their two vertices
+     * @return A map that associates pseudo-registers with real ARM registers
+     */
     public Map<Register, Register> colorGraph(Graph<Register> interferenceGraph) {
         // generate a List of all unreserved registers
         // Note: x19 and x20 are reserved for spillover
@@ -1124,6 +1412,13 @@ public class IrFunction {
         return coloring;
     }
 
+
+    /**
+     * For all null values in the map, add stack space to store them.
+     * @param coloring Map of pseudo to real registers generated by colorGraph
+     * @return Map of registers to integers associating the spilled values with
+     * locations on the stack
+     */
     public Map<Register, Integer> allocateSpillage(Map<Register, Register> coloring) {
         Map<Register, Integer> offsetMap = new HashMap<>();
         List<Register> discardedKeys = new ArrayList<>();
@@ -1140,6 +1435,14 @@ public class IrFunction {
         return offsetMap;
     }
 
+
+    /**
+     * Replaces all pseudo-registers with the real registers determined in colorGraph, or adds the required
+     * loads/stores if the value was spilled
+     *
+     * @param coloring Map of pseudo to real registers generated by colorGraph
+     * @param spillageAddresses Map or pseudo registers to stack offsets generated by allocateSpillage
+     */
     public void updateRegisters(Map<Register, Register> coloring, Map<Register, Integer> spillageAddresses) {
         List<Register> spillRegs = Register.genArmRegisterList(Arrays.asList(19, 20));
         // for each block

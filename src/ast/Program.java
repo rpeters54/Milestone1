@@ -26,7 +26,7 @@ public class Program {
 
     public boolean validMain() {
         for (Function func : funcs) {
-            if (func.getName().equals("main")) {
+            if (func.getName().equals("main") && func.getRetType() instanceof IntType) {
                 return true;
             }
         }
@@ -84,13 +84,14 @@ public class Program {
         for (Function func : funcs) {
             if (!(func.getRetType() instanceof VoidType)
                     && !func.getBody().alwaysReturns()) {
+                System.err.println("At Function: "+func.getName());
                 return false;
             }
         }
         return true;
     }
 
-    public IrProgram toCFG(CFGType type) {
+    public IrProgram toCFG(CFGType type, boolean transformations) {
         IrProgram prog = new IrProgram();
 
         // add driver code to the top of the file
@@ -121,7 +122,7 @@ public class Program {
             }
             case SSA -> {
                 for (Function func : funcs) {
-                    IrFunction processedFunction = func.toSSACFG(prog);
+                    IrFunction processedFunction = func.toSSACFG(prog, transformations);
                     prog.addIrFunction(processedFunction);
                 }
             }
